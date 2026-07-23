@@ -490,3 +490,10 @@ main .footer__links { margin-bottom: var(--sp-8); }
 /* Legal bar links stay quiet — no underline chrome at the very bottom. */
 .footer__legal a { text-decoration: none; color: inherit; }
 .footer__legal a:hover { background: var(--accent); color: #141310; }
+
+/* Touch targets (design-review F001): nav/folio links measured 15-25px tall.
+   Expand the HIT AREA without moving a pixel: padding grows the target,
+   negative margin cancels the layout shift. */
+.nav a, .folio a, .footer__links a {
+  padding: 12px 6px; margin: -12px -6px;
+}
