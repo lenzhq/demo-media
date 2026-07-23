@@ -19,12 +19,14 @@
 </section>
 {% endblock %}
 
-{% block scripts %}
+{% block head_early %}
 <script>
   // Self-healing links: article URLs end in the claim's verification id, so a
   // mangled/truncated slug (typos, messenger truncation) still carries enough
   // to recover. Bounce through /c/<id>/ — stub or claimlive resolves it to the
   // canonical article. Never fires on /c/ itself (that 404 is authoritative).
+  // Lives in <head> so the redirect happens BEFORE first paint — recoverable
+  // URLs never flash the 404 page.
   (function () {
     "use strict";
     var m = location.pathname.match(/^\/(?!c\/)[a-z][a-z-]*\/.*-([a-f0-9]{8})\/?$/);

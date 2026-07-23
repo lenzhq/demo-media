@@ -54,6 +54,7 @@
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+  {% block head_early %}{% endblock %}
   <link rel="stylesheet" href="{{ CSS_PATH }}">
 
   {% for ld in jsonld_blocks|default([]) %}
