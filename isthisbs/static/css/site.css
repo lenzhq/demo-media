@@ -353,6 +353,7 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 
 /* ---- Entity cloud ------------------------------------------------------ */
 .cloud { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3) var(--sp-4);
+  margin-top: var(--sp-5);
   font-family: var(--font-mono); }
 .cloud__item { text-decoration: none; line-height: 1.2; color: var(--ink); }
 .cloud__item:hover { background: var(--accent); color: #141310; }
@@ -572,3 +573,9 @@ main .footer__links { margin-bottom: var(--sp-8); }
    cards) otherwise override the UA's [hidden]{display:none} and make
    attribute-based toggling (the verdict filter) a silent no-op. */
 [hidden] { display: none !important; }
+
+/* Hover-highlight breathing room: the yellow block should not clip at the
+   first/last letter. Padding + negative margin = zero layout shift. */
+.readlink, .band__more, .cloud__item, .crumbs a {
+  padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
+}
