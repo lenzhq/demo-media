@@ -221,3 +221,23 @@ def test_article_serp_contract(tmp_path, checks):
     if check.sources:
         assert f"Checked against {len(check.sources)} independent sources." in html
     assert 'property="og:site_name"' in html
+
+
+def test_filed_under_links_only_topic_entities(tmp_path, make_detail):
+    """Entities with topic pages link there; below-threshold ones are plain."""
+    shared = [{"name": "Linked Topic", "qid": "Q1"}]
+    docs = [
+        make_detail(claim="a", entities=shared, created_at="2026-07-10T00:00:00Z"),
+        make_detail(
+            claim="b",
+            entities=shared + [{"name": "Solo Thing", "qid": "Q2"}],
+            created_at="2026-07-11T00:00:00Z",
+        ),
+    ]
+    checks = content.build_checks(docs)
+    render.render_site(checks, tmp_path)
+    check_b = next(c for c in checks if c.claim == "b")
+    html = _article_path(tmp_path, check_b).read_text(encoding="utf-8")
+    assert "Filed Under" in html
+    assert '<a class="tag" href="/topic/linked-topic/">Linked Topic</a>' in html
+    assert 'tag--plain">Solo Thing</span>' in html

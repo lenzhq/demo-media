@@ -95,7 +95,8 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
 
     _render_home(env, out_dir, checks, sections, colls, entity_groups)
     _render_sections(env, out_dir, sections)
-    _render_articles(env, out_dir, checks, by_id)
+    topic_slugs = {g.entity.slug for g in entity_groups}
+    _render_articles(env, out_dir, checks, by_id, topic_slugs)
     _render_topics(env, out_dir, entity_groups)
     _render_latest(env, out_dir, checks)
     _render_collections(env, out_dir, colls)
@@ -382,6 +383,7 @@ def _render_articles(
     out_dir: Path,
     checks: list[Check],
     by_id: dict[str, Check],
+    topic_slugs: set[str],
 ) -> None:
     """One article per check — the core unit of the site."""
     template = env.get_template("article.html")
@@ -411,6 +413,10 @@ def _render_articles(
             check=check,
             breadcrumb=breadcrumb[:2],  # visible crumb stops at the section
             related=_resolve_related(check, by_id, checks),
+            # Entities with topic pages link there ("Filed Under" row); the
+            # rest render unlinked — no dead links, and the row doubles as
+            # the internal-link path that keeps topic hubs from being orphans.
+            topic_slugs=topic_slugs,
         )
         _write(out_dir, check.path, html)
 

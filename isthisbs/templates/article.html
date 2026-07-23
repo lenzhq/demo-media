@@ -94,6 +94,20 @@
     {% endif %}
   </section>
   {% endif %}
+  {% if check.entities %}
+  <section class="filed-under" data-pagefind-ignore>
+    <h2 class="block-head">Filed Under</h2>
+    <p class="filed-under__tags">
+      {% for e in check.entities %}
+      {%- if e.slug in topic_slugs -%}
+      <a class="tag" href="{{ e.path }}">{{ e.name }}</a>
+      {%- else -%}
+      <span class="tag tag--plain">{{ e.name }}</span>
+      {%- endif -%}
+      {% endfor %}
+    </p>
+  </section>
+  {% endif %}
 </article>
 
 {% if related %}
