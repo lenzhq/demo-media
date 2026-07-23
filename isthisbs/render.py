@@ -556,9 +556,7 @@ def _render_about(env: Environment, out_dir: Path) -> None:
     _write(out_dir, "/about/", html)
 
 
-def _render_claim_stubs(
-    env: Environment, out_dir: Path, checks: list[Check]
-) -> None:
+def _render_claim_stubs(env: Environment, out_dir: Path, checks: list[Check]) -> None:
     """Permanent /c/<id>/ short links -> canonical articles.
 
     The @isthisbs bot links claims by id the moment they're verified. Until
