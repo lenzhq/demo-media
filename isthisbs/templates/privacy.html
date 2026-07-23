@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{#
+  Privacy & Terms: one combined page. No accounts, no ads, no data sale —
+  the honest scope is analytics disclosure + an as-is disclaimer for the
+  verdicts. Plain English over legalese, per the desk's voice.
+#}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+    {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<article class="article prose">
+  <h1 class="article__title">Privacy &amp; Terms</h1>
+  <p>Last updated: July 23, 2026.</p>
+
+  <h2 class="block-head">Privacy</h2>
+  <p>
+    IsThisBS has no accounts, no comments, no newsletters, and no ads. We do
+    not collect names, email addresses, or any information you type — there is
+    nowhere on the site to type anything except the search box, which runs
+    entirely in your browser.
+  </p>
+  <p>
+    The one thing we measure is traffic. The site uses Google Analytics to
+    count visits and see which fact checks get read. Google Analytics sets
+    cookies and processes technical data such as your IP address and browser
+    type; Google's handling of that data is described in the
+    <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google Privacy Policy</a>.
+    We use the resulting statistics in aggregate only, we don't try to
+    identify individual visitors, and we don't sell or share data with anyone
+    else. If you block analytics with a browser extension or tracker blocker,
+    the site works exactly the same.
+  </p>
+  <p>
+    Under EU data-protection law (GDPR) you can ask what data exists about
+    you and ask for it to be deleted. Since we hold no visitor data ourselves,
+    such requests effectively concern Google Analytics — contact us via
+    <a href="{{ SITE.github_repo }}/issues" rel="noopener" target="_blank">GitHub</a>
+    and we will help, or use
+    <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener" target="_blank">Google's opt-out tools</a>
+    directly.
+  </p>
+
+  <h2 class="block-head">Terms of use</h2>
+  <p>
+    The verdicts on this site are produced by an automated fact-checking
+    engine — <a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">Lenz</a> —
+    that checks each claim against independent sources. They are research
+    aids, not professional, legal, medical, or financial advice, and not
+    statements of opinion by any person. Verdicts reflect the evidence
+    available at the time of the check and can change as evidence changes.
+  </p>
+  <p>
+    The site is provided as-is, without warranty of any kind. We work to keep
+    it accurate, but we don't guarantee that any verdict, summary, or source
+    excerpt is complete, current, or error-free. If a check looks wrong,
+    <a href="{{ SITE.github_repo }}/issues" rel="noopener" target="_blank">tell us</a> —
+    the fastest way to fix a bad check is to flag it.
+  </p>
+  <p>
+    The software behind the site is open source under the
+    <a href="{{ SITE.github_repo }}/blob/main/LICENSE" rel="noopener" target="_blank">MIT license</a>.
+    You are welcome to quote and link to fact checks; please attribute
+    IsThisBS and link back to the article you're citing.
+  </p>
+</article>
+{% endblock %}

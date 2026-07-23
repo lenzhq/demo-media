@@ -102,6 +102,7 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
     _render_collections(env, out_dir, colls)
     _render_search(env, out_dir)
     _render_about(env, out_dir)
+    _render_privacy(env, out_dir)
     _render_claim_stubs(env, out_dir, checks)
     _render_404(env, out_dir)
 
@@ -596,6 +597,24 @@ def _render_about(env: Environment, out_dir: Path) -> None:
         breadcrumb=[("Home", "/"), ("About", "/about/")],
     )
     _write(out_dir, "/about/", html)
+
+
+def _render_privacy(env: Environment, out_dir: Path) -> None:
+    """Combined privacy notice + terms-of-use / as-is disclaimer page."""
+    html = env.get_template("privacy.html").render(
+        nav_active=None,
+        canonical_path="/privacy/",
+        page_title=f"Privacy & Terms · {SITE.short_name}",
+        meta_description=(
+            "What IsThisBS collects (analytics only — no accounts, no ads), "
+            "and the terms under which the automated fact checks are published."
+        ),
+        og_type="website",
+        og_image_path=_DEFAULT_OG_PATH,
+        jsonld_blocks=[seo.organization(), seo.website()],
+        breadcrumb=[("Home", "/"), ("Privacy & Terms", "/privacy/")],
+    )
+    _write(out_dir, "/privacy/", html)
 
 
 def _render_claim_stubs(env: Environment, out_dir: Path, checks: list[Check]) -> None:

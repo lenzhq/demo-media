@@ -356,7 +356,7 @@ def _write_sitemap_pages(checks: list[Check], out_dir: Path, today: str) -> None
     paths += _paged("/latest/", len(checks), PAGE_SIZE)
     paths += _paged("/bs-files/", len(colls["bs_files"]), PAGE_SIZE)
     paths += _paged("/checks-out/", len(colls["checks_out"]), PAGE_SIZE)
-    paths += ["/search/", "/about/"]
+    paths += ["/search/", "/about/", "/privacy/"]
     # Every entity hub that cleared the >= min-claims threshold.
     for group in group_by_entity(checks):
         paths += _paged(group.entity.path, len(group.checks), PAGE_SIZE)

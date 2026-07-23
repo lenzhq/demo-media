@@ -3,7 +3,11 @@
    Single stylesheet, no framework, no webfonts. Implements the DESIGN.md
    token system with system-font stacks (see the spec-change note: zero font
    requests for PageSpeed). "Newsprint + caution tape": paper, ink, hairlines,
-   one caution-yellow accent. Dark mode via prefers-color-scheme.
+   one caution-yellow accent. Dark mode via prefers-color-scheme, with a
+   manual override: `data-theme="light|dark"` on <html> (set pre-paint from
+   localStorage by the inline script in base.html) beats the OS preference,
+   so every dark block ships in two forms — the media query gated on
+   :root:not([data-theme="light"]) and a [data-theme="dark"] duplicate.
    ========================================================================= */
 
 /* ---- Tokens ------------------------------------------------------------ */
@@ -42,14 +46,25 @@
   --radius: 3px;
 }
 
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #16140F;
     --ink: #EDE9DF;
     --ink-60: #A29B8C;
     --hairline: #2E2A22;
     --card: #1D1A14;
   }
+}
+:root[data-theme="dark"] {
+  --paper: #16140F;
+  --ink: #EDE9DF;
+  --ink-60: #A29B8C;
+  --hairline: #2E2A22;
+  --card: #1D1A14;
 }
 
 /* Verdict tokens — `--fill` (graphic) + `--vtext` (AA text). Fill is stable
@@ -61,12 +76,17 @@
 .v-total-bs { --fill: #C62828; --vtext: #B3261E; }
 
 @media (prefers-color-scheme: dark) {
-  .v-not-bs   { --vtext: #7BC67E; }
-  .v-hardly-bs{ --vtext: #A5C96A; }
-  .v-some-bs  { --vtext: #E0B84C; }
-  .v-mostly-bs{ --vtext: #E88A55; }
-  .v-total-bs { --vtext: #F08C86; }
+  :root:not([data-theme="light"]) .v-not-bs   { --vtext: #7BC67E; }
+  :root:not([data-theme="light"]) .v-hardly-bs{ --vtext: #A5C96A; }
+  :root:not([data-theme="light"]) .v-some-bs  { --vtext: #E0B84C; }
+  :root:not([data-theme="light"]) .v-mostly-bs{ --vtext: #E88A55; }
+  :root:not([data-theme="light"]) .v-total-bs { --vtext: #F08C86; }
 }
+:root[data-theme="dark"] .v-not-bs   { --vtext: #7BC67E; }
+:root[data-theme="dark"] .v-hardly-bs{ --vtext: #A5C96A; }
+:root[data-theme="dark"] .v-some-bs  { --vtext: #E0B84C; }
+:root[data-theme="dark"] .v-mostly-bs{ --vtext: #E88A55; }
+:root[data-theme="dark"] .v-total-bs { --vtext: #F08C86; }
 
 /* ---- Reset / base ------------------------------------------------------ */
 *, *::before, *::after { box-sizing: border-box; }
@@ -152,6 +172,14 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   margin-left: auto; padding: 2px 8px; border: 1px solid var(--hairline);
   border-radius: 999px; text-decoration: none; white-space: nowrap; color: var(--ink);
 }
+/* Theme cycle button — folio-chip family: same pill, but a <button>. */
+.theme-toggle {
+  padding: 6px 12px; margin: -4px 0; border: 1px solid var(--hairline);
+  border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer;
+  font: inherit; text-transform: uppercase; letter-spacing: inherit;
+  white-space: nowrap;
+}
+.theme-toggle:hover { border-color: var(--ink); }
 @media (max-width: 44rem) { .folio__tagline { display: none; } }
 
 /* ---- Masthead + wordmark + nav ----------------------------------------- */

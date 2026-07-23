@@ -55,6 +55,16 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
   <script>
+    // Theme override (light|dark; absent = follow the OS). Runs before the
+    // stylesheet so a stored choice paints correctly on the first frame.
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
+  <script>
     // Keep traffic on the brand domain: Firebase's default origins can't be
     // disabled, so bounce them (pre-paint, exact hosts only — previews and
     // localhost never match). Canonical tags already handle the SEO side.
@@ -95,6 +105,9 @@
       <span class="folio__date">{{ build_date.strftime('%A') }}, {{ build_date|datefmt }}</span>
       <span class="folio__tagline">{{ SITE.tagline }}</span>
       <a class="folio__chip" href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">POWERED BY LENZ ↗</a>
+      {# Three-state theme cycle (auto → light → dark). Hidden without JS —
+         the site is fully readable either way; this is pure preference. #}
+      <button class="theme-toggle" data-theme-toggle type="button" hidden></button>
     </div>
   </div>
 
@@ -146,6 +159,7 @@
           <li><a href="/bs-files/">The BS Files</a></li>
           <li><a href="/checks-out/">Checks Out</a></li>
           <li><a href="/about/">About</a></li>
+          <li><a href="/privacy/">Privacy &amp; Terms</a></li>
           <li><a href="/search/">Search</a></li>
           <li><a href="/feed.xml">RSS</a></li>
         </ul>
@@ -168,6 +182,35 @@
     </div>
   </footer>
 
+  <script>
+    // Theme toggle: cycles auto → light → dark. "auto" removes the override
+    // and returns to prefers-color-scheme. Persisted in localStorage("theme");
+    // the pre-paint script in <head> replays it on every page load.
+    (function () {
+      var btn = document.querySelector("[data-theme-toggle]");
+      if (!btn) return;
+      var MODES = ["auto", "light", "dark"];
+      var GLYPH = { auto: "◐", light: "☀", dark: "☾" };
+      function stored() {
+        try { var t = localStorage.getItem("theme"); return t === "light" || t === "dark" ? t : "auto"; }
+        catch (e) { return "auto"; }
+      }
+      function show(mode) {
+        btn.textContent = GLYPH[mode] + " " + mode.toUpperCase();
+        btn.setAttribute("aria-label", "Theme: " + mode + ". Activate to switch.");
+      }
+      var mode = stored();
+      show(mode);
+      btn.hidden = false;
+      btn.addEventListener("click", function () {
+        mode = MODES[(MODES.indexOf(mode) + 1) % MODES.length];
+        try { mode === "auto" ? localStorage.removeItem("theme") : localStorage.setItem("theme", mode); } catch (e) {}
+        if (mode === "auto") document.documentElement.removeAttribute("data-theme");
+        else document.documentElement.setAttribute("data-theme", mode);
+        show(mode);
+      });
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
