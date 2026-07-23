@@ -3,7 +3,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install build smoke serve test lint fmt deploy clean distclean
+.PHONY: smoke-live help install build smoke serve test lint fmt deploy clean distclean
 
 help:  ## Show this help
 	@echo "IsThisBS? — make targets:"
@@ -47,3 +47,6 @@ clean:  ## Remove dist/
 
 distclean: clean  ## Remove dist/ and the incremental .cache/
 	rm -rf .cache
+
+smoke-live:  ## Verify the LIVE site (redirects, catalog, function, SEO assets)
+	bash scripts/smoke.sh

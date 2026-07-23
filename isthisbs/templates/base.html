@@ -55,6 +55,17 @@
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+  <script>
+    // Keep traffic on the brand domain: Firebase's default origins can't be
+    // disabled, so bounce them (pre-paint, exact hosts only — previews and
+    // localhost never match). Canonical tags already handle the SEO side.
+    (function () {
+      var h = location.hostname;
+      if ({{ SITE.firebase_default_hosts|list|tojson }}.indexOf(h) !== -1) {
+        location.replace("{{ SITE.base_url }}" + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
   {% block head_early %}{% endblock %}
   <link rel="stylesheet" href="{{ CSS_PATH }}">
 

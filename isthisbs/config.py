@@ -41,6 +41,14 @@ class Site:
     lenz_sdk_node: str = "https://www.npmjs.com/package/lenz-io"
     github_repo: str = "https://github.com/lenzhq/demo-media"
     twitter_handle: str = "@isthisbs"
+    #: Firebase's always-on default origins. Pages served there carry a
+    #: pre-paint bounce to base_url (canonicals already protect SEO; this
+    #: keeps humans and copied links on the brand domain). EXACT hosts only —
+    #: preview channels (site--pr-N-*.web.app) must never redirect.
+    firebase_default_hosts: tuple[str, ...] = (
+        "isthisbs-prod.web.app",
+        "isthisbs-prod.firebaseapp.com",
+    )
 
     def lenz_claim_url(self, verification_id: str) -> str:
         """Canonical 'full analysis' page on lenz.io for a claim."""

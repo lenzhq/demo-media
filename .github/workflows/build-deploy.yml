@@ -109,6 +109,13 @@ jobs:
           --project ${{ vars.GCP_PROJECT }}
           --non-interactive
 
+      - name: Post-deploy smoke (stable origin; full checklist)
+        if: vars.GCP_PROJECT != ''
+        env:
+          BASE_URL: https://${{ vars.GCP_PROJECT }}.web.app
+          CHECK_DOMAIN: isthisbs.org
+        run: bash scripts/smoke.sh
+
       - name: Notify on failure (optional — set DISCORD_WEBHOOK_URL secret)
         if: failure()
         env:
