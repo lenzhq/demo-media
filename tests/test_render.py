@@ -161,6 +161,7 @@ def test_all_five_verdicts_render_pill(tmp_path, make_detail):
         v = VERDICTS[check.verdict_key]
         assert v.bs_label in html
         assert f'data-pagefind-filter="verdict:{v.key}"' in html
+        assert 'data-pagefind-filter="section"' in html
 
 
 # --------------------------------------------------------------------------- #

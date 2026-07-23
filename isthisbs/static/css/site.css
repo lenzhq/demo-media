@@ -500,3 +500,74 @@ main .footer__links { margin-bottom: var(--sp-8); }
 /* The bordered chip carries its own padding — inflating it would drag the
    pill over the folio hairline. Grow its tap area modestly instead. */
 .folio__chip { padding: 6px 12px; margin: -4px 0; }
+
+/* Pagefind widget theming — its .svelte-* selectors outrank ours and it sets
+   background from a variable but never `color` (UA black text on dark paper),
+   ships a lopsided Clear padding, and draws near-invisible checkboxes in dark.
+   !important is the pragmatic tool against a third-party widget's scoping. */
+.pf-search .pagefind-ui__search-input {
+  color: var(--ink) !important;
+  background-color: var(--card) !important;
+  border-color: var(--hairline) !important;
+  font-family: var(--font-serif) !important;
+}
+.pf-search .pagefind-ui__search-input::placeholder {
+  color: var(--ink-60) !important; opacity: 0.7 !important;
+}
+.pf-search .pagefind-ui__search-clear {
+  font-family: var(--font-mono) !important;
+  font-size: var(--fs-label) !important;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-60) !important;
+  background: transparent !important;
+  padding: 0 14px !important;
+}
+.pf-search .pagefind-ui__search-clear:hover { color: var(--ink) !important; }
+.pf-search .pagefind-ui__filter-checkbox {
+  border: 1px solid var(--ink-60) !important;
+  background-color: var(--card) !important;
+}
+.pf-search .pagefind-ui__filter-checkbox:checked {
+  background-color: var(--ink) !important;
+  border-color: var(--ink) !important;
+}
+/* The checkmark is a #fff border stroke — paper-colored works in BOTH schemes
+   (dark ink-box gets a near-black check on cream; light gets cream on ink). */
+.pf-search .pagefind-ui__filter-value:before { border-color: var(--paper) !important; }
+.pf-search .pagefind-ui__filter-value,
+.pf-search .pagefind-ui__filter-name { color: var(--ink); }
+
+/* Full Pagefind component sweep — everything its stylesheet leaves unstyled
+   or maps poorly for a dark scheme. */
+.pf-search mark {  /* excerpt highlights: browser default is yellow/black */
+  background: var(--accent); color: #141310; padding: 0 2px;
+}
+.pf-search .pagefind-ui__result-link {  /* match the site's link treatment */
+  color: var(--ink) !important;
+  font-family: var(--font-serif); font-weight: 700;
+  text-decoration: underline; text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px; text-underline-offset: 3px;
+}
+.pf-search .pagefind-ui__result-link:hover { background: var(--accent); color: #141310 !important; }
+.pf-search .pagefind-ui__result-excerpt { color: var(--ink-60); }
+.pf-search .pagefind-ui__result-tag {  /* was --card on paper: invisible in dark */
+  background: transparent !important; border: 1px solid var(--hairline);
+  font-family: var(--font-mono); font-size: var(--fs-label);
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-60);
+  padding: 2px 8px; border-radius: 3px;
+}
+.pf-search .pagefind-ui__button {  /* Load more — style as our chip */
+  font-family: var(--font-mono) !important; font-size: var(--fs-label) !important;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink) !important; background: transparent !important;
+  border: 1px solid var(--hairline) !important; border-radius: 3px;
+}
+.pf-search .pagefind-ui__button:hover {
+  background: var(--ink) !important; color: var(--paper) !important;
+  border-color: var(--ink) !important;
+}
+.pf-search .pagefind-ui__loading {  /* skeleton shimmer glowed cream in dark */
+  color: var(--hairline) !important; background-color: var(--hairline) !important;
+}
+.pf-search .pagefind-ui__message,
+.pf-search .pagefind-ui__filter-panel { color: var(--ink); }

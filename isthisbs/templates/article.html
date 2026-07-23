@@ -23,7 +23,10 @@
 </nav>
 
 <article class="article" data-pagefind-body data-pagefind-filter="verdict:{{ check.verdict_key }}">
-  <p class="article__kicker">
+  {#- Separate element per extra facet — comma syntax inside one attribute is
+      parsed as multiple VALUES of the same filter, not a second filter. -#}
+  <span hidden data-pagefind-filter="section">{{ check.section.title }}</span>
+  <p class="article__kicker" data-pagefind-ignore>
     <a href="{{ check.section.path }}">{{ check.section.title|upper }}</a>
     <span class="dot" aria-hidden="true">·</span>
     <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
@@ -32,7 +35,7 @@
   <p class="kicker">The Claim</p>
   <h1 class="article__title claim-quote{% if check.claim|length > 140 %} claim-quote--long{% endif %}">{{ check.claim }}</h1>
 
-  <div class="article__verdict">
+  <div class="article__verdict" data-pagefind-ignore>
     {{ meter(check) }}
     <p class="article__byline">Verified by Lenz · <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time></p>
   </div>
