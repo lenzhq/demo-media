@@ -491,6 +491,9 @@ main .footer__links { margin-bottom: var(--sp-8); }
 /* Touch targets (design-review F001): nav/folio links measured 15-25px tall.
    Expand the HIT AREA without moving a pixel: padding grows the target,
    negative margin cancels the layout shift. */
-.nav a, .folio a, .footer__links a {
+.nav a, .footer__links a, .folio a:not(.folio__chip) {
   padding: 12px 6px; margin: -12px -6px;
 }
+/* The bordered chip carries its own padding — inflating it would drag the
+   pill over the folio hairline. Grow its tap area modestly instead. */
+.folio__chip { padding: 6px 12px; margin: -4px 0; }
