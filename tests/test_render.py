@@ -51,6 +51,8 @@ def test_every_page_has_exactly_one_h1(rendered):
     html_files = list(rendered.rglob("*.html"))
     assert html_files, "no HTML emitted"
     for path in html_files:
+        if f"{path.parent.parent.name}" == "c" or "/c/" in path.as_posix():
+            continue  # /c/ redirect stubs are noindex shells, not pages
         html = path.read_text(encoding="utf-8")
         count = len(_H1_RE.findall(html))
         assert count == 1, f"{path} has {count} <h1> tags"

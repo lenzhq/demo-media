@@ -101,6 +101,7 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
     _render_collections(env, out_dir, colls)
     _render_search(env, out_dir)
     _render_about(env, out_dir)
+    _render_claim_stubs(env, out_dir, checks)
     _render_404(env, out_dir)
 
     _copy_static(out_dir, css_path, css_body)
@@ -553,6 +554,24 @@ def _render_about(env: Environment, out_dir: Path) -> None:
         breadcrumb=[("Home", "/"), ("About", "/about/")],
     )
     _write(out_dir, "/about/", html)
+
+
+def _render_claim_stubs(
+    env: Environment, out_dir: Path, checks: list[Check]
+) -> None:
+    """Permanent /c/<id>/ short links -> canonical articles.
+
+    The @isthisbs bot links claims by id the moment they're verified. Until
+    the next build, Firebase rewrites the (nonexistent) path to the claimlive
+    function; from then on these stubs shadow it. See claim_redirect.html.
+    """
+    template = env.get_template("claim_redirect.html")
+    for check in checks:
+        _write(
+            out_dir,
+            f"/c/{check.verification_id}/",
+            template.render(check=check),
+        )
 
 
 def _render_404(env: Environment, out_dir: Path) -> None:

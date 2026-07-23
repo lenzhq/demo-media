@@ -13,6 +13,14 @@ accepted: E1 editorial floor, E4 PR preview channels):
 - **Launch checklist (Pavel/Vicky, outside this repo):** link from
   lenz.io/developers; `@isthisbs` bot bio + reply links; Show HN post; domain
   DNS → Firebase (isthisbs.org); create GA4 property + set `GA_MEASUREMENT_ID`.
+- **X-bot link switch (Lenz repo, one-liner):** point the @isthisbs reply URL
+  at `https://isthisbs.org/c/<verification_id>` (was lenz.io/c/). The /c/
+  short-link system (static stubs + claimlive function fallback) serves the
+  claim with a full OG card from second zero; the daily build absorbs it.
+  Keep the bare-URL/no-UTM attribution decision.
+- **Firebase Blaze plan required** before the first functions deploy (Cloud
+  Functions gen2 needs billing enabled; volume ≈ pennies). provision-gcp.sh
+  enables the APIs + SA roles already.
 - **Lenz-side API extension (Lenz repo, separate PR):** make
   `GET /verifications/{id}/related` keyless public-read (list + detail already
   are; verified 2026-07-23). Until then the site uses entity-overlap fallback

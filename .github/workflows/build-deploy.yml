@@ -100,8 +100,10 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
         run: >-
+          rm -rf functions/isthisbs &&
+          cp -R isthisbs functions/isthisbs &&
           npx firebase-tools@13 deploy
-          --only hosting
+          --only hosting,functions
           --project ${{ vars.GCP_PROJECT }}
           --non-interactive
 

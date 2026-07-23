@@ -65,7 +65,7 @@ gcloud config set project "${GCP_PROJECT}" >/dev/null
 echo "[2/8] Enabling required APIs..."
 gcloud services enable \
   firebase.googleapis.com \
-  firebasehosting.googleapis.com \
+  firebasehosting.googleapis.com cloudfunctions.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com run.googleapis.com eventarc.googleapis.com \
   iamcredentials.googleapis.com \
   iam.googleapis.com \
   cloudresourcemanager.googleapis.com \
@@ -106,11 +106,20 @@ fi
 # 5. Grant the SA just what it needs to deploy Hosting
 # --------------------------------------------------------------------------- #
 echo "[5/8] Granting deploy roles to the service account..."
-# Publish to Firebase Hosting.
-gcloud projects add-iam-policy-binding "${GCP_PROJECT}" \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/firebasehosting.admin" \
-  --condition=None >/dev/null
+# Publish to Firebase Hosting + deploy the claimlive function (Cloud
+# Functions gen2 rides Cloud Run + Cloud Build + Artifact Registry).
+for _role in \
+    roles/firebasehosting.admin \
+    roles/cloudfunctions.developer \
+    roles/run.admin \
+    roles/cloudbuild.builds.editor \
+    roles/artifactregistry.writer \
+    roles/iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding "${GCP_PROJECT}" \
+    --member="serviceAccount:${SA_EMAIL}" \
+    --role="${_role}" \
+    --condition=None >/dev/null
+done
 # Allow the SA to consume services (required by firebase-tools API calls).
 gcloud projects add-iam-policy-binding "${GCP_PROJECT}" \
   --member="serviceAccount:${SA_EMAIL}" \

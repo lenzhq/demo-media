@@ -54,6 +54,20 @@
           }
         ]
       }
+    ],
+    "rewrites": [
+      {
+        "source": "/c/**",
+        "function": "claimlive"
+      },
+      {
+        "source": "/og-live/**",
+        "function": "claimlive"
+      }
     ]
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "python312"
   }
 }

@@ -59,3 +59,6 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"functions/live_core.py" = ["E501"]  # inline HTML template lines

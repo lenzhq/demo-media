@@ -1,0 +1,35 @@
+{#-
+  Permanent short-link stub: /c/<verification_id>/ → the canonical article.
+
+  Why it exists: the @isthisbs bot (and anyone else) links claims by
+  verification id the moment they're checked — before the slug/section URL
+  exists. These stubs make the short link permanent once a claim is built;
+  BEFORE the build, Firebase finds no file here and rewrites the request to
+  the claimlive function (functions/main.py), which serves the same claim
+  live from the Lenz API. Static always shadows dynamic once built.
+
+  Carries full OG meta so late crawler re-fetches of a tweeted /c/ URL keep
+  getting a real card (the static one) after the build absorbs the claim.
+-#}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ check.claim|truncate(70) }} — {{ SITE.name }}</title>
+  <link rel="canonical" href="{{ check.url }}">
+  <meta name="robots" content="noindex">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ check.claim|truncate(110) }}">
+  <meta property="og:description" content="{{ check.verdict.bs_label }} — Verdict: {{ check.verdict.key }}. Checked against independent sources.">
+  <meta property="og:image" content="{{ SITE.base_url }}{{ check.og_path }}">
+  <meta property="og:url" content="{{ check.url }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ SITE.base_url }}{{ check.og_path }}">
+  <meta http-equiv="refresh" content="0; url={{ check.path }}">
+  <script>location.replace("{{ check.path }}");</script>
+</head>
+<body>
+  <p>Redirecting to <a href="{{ check.path }}">the check</a>…</p>
+</body>
+</html>
