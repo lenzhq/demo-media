@@ -12,13 +12,15 @@
 #}
 {% from "_pill.html" import pill %}
 
-{% macro card(check, variant="", heading="h3") %}
+{% macro card(check, variant="", heading="h3", show_section=True) %}
 <article class="check-card{% if variant %} check-card--{{ variant }}{% endif %}"
          data-verdict="{{ check.verdict_key }}"
          data-pagefind-filter="verdict:{{ check.verdict_key }}">
   <p class="check-card__kicker">
+    {%- if show_section %}
     <a class="check-card__section" href="{{ check.section.path }}">{{ check.section.title|upper }}</a>
     <span class="dot" aria-hidden="true">·</span>
+    {%- endif %}
     <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
   </p>
   <{{ heading }} class="check-card__title">
