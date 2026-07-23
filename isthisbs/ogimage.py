@@ -34,7 +34,7 @@ from .config import Verdict
 logger = logging.getLogger(__name__)
 
 # Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "2"  # v2: verdict/attribution collision guard
+TEMPLATE_VERSION = "3"  # v3: top-right attribution, adaptive centered claim
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -155,7 +155,11 @@ def _ellipsize(font, text: str, max_width: float) -> str:
     trimmed = text
     while trimmed and _text_width(font, trimmed + ell) > max_width:
         trimmed = trimmed[:-1]
-    return (trimmed.rstrip() + ell) if trimmed else ell
+    # Cut at a word boundary — "paral…" reads sloppy; drop the partial word
+    # (keep the char-level cut when even the first word doesn't fit).
+    if " " in trimmed.strip():
+        trimmed = trimmed[: trimmed.rstrip().rfind(" ")]
+    return (trimmed.rstrip(" ,;:—-") + ell) if trimmed else ell
 
 
 def _wrap(font, text: str, max_width: float, max_lines: int) -> list[str]:
@@ -209,7 +213,16 @@ def _draw_tracked(draw, pos, text, font, fill, tracking) -> float:
 
 
 def render_card(claim: str, verdict: Verdict) -> Image.Image:
-    """Render one article's OG card: claim + dual-labelled verdict block."""
+    """Render one article's OG card: claim + dual-labelled verdict block.
+
+    Layout (v3, after visual review of 10 rendered cards):
+    - attribution sits top-RIGHT on the kicker line (folio convention) so the
+      bottom row belongs entirely to the verdict — "MOSTLY TRUE"-length
+      suffixes always fit now instead of silently disappearing;
+    - the claim scales 72→48px by length and is vertically centered between
+      kicker and verdict, so one-liners don't strand a void and five-liners
+      keep guaranteed air above the verdict row.
+    """
     _load_fonts_if_needed()
     img = Image.new("RGB", (CARD_W, CARD_H), PAPER)
     draw = ImageDraw.Draw(img)
@@ -220,18 +233,39 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
     label_font = _font(_MONO, 26)
     _draw_tracked(draw, (MARGIN, 60), "THE CLAIM", label_font, INK_60, 4)
 
-    # Claim in the display face, wrapped to <=5 lines.
-    claim_font = _font(_DISPLAY, 66)
-    line_h = 84
+    # Attribution — top-right, opposite the kicker.
+    attr_font = _font(_MONO_LIGHT, 22)
+    attr = "IsThisBS?  ·  verified by Lenz"
+    attr_w = _text_width(attr_font, attr)
+    draw.text((CARD_W - MARGIN - attr_w, 62), attr, font=attr_font, fill=INK_60)
+
+    # --- Claim: adaptive size, vertically centered in its area ---
+    area_top = 132
+    block_y = CARD_H - 96
+    area_bottom = block_y - 36  # guaranteed air above the verdict row
     max_text_w = CARD_W - 2 * MARGIN
-    lines = _wrap(claim_font, f"“{claim}”", max_text_w, 5)
-    y = 128
+    quoted = f"“{claim}”"
+    lines: list[str] = []
+    claim_font = _font(_DISPLAY, 48)
+    line_h = 60
+    for size in (72, 64, 56, 48):
+        font = _font(_DISPLAY, size)
+        lh = int(size * 1.24)
+        max_lines = max(1, (area_bottom - area_top) // lh)
+        wrapped = _wrap(font, quoted, max_text_w, max_lines)
+        # Accept the first size whose wrap needed no truncation; the smallest
+        # size takes whatever fits (with word-boundary ellipsis from _wrap).
+        joined = "".join(wrapped)
+        if not joined.endswith("…") or size == 48:
+            claim_font, line_h, lines = font, lh, wrapped
+            break
+    text_h = len(lines) * line_h
+    y = area_top + max(0, (area_bottom - area_top - text_h) // 2)
     for line in lines:
         draw.text((MARGIN, y), line, font=claim_font, fill=INK)
         y += line_h
 
-    # --- Bottom-left verdict block ---
-    block_y = CARD_H - 96
+    # --- Bottom verdict row (owns the full width now) ---
     square = 34
     draw.rectangle(
         [MARGIN, block_y, MARGIN + square, block_y + square],
@@ -240,33 +274,11 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
     vfont = _font(_MONO, 30)
     tx = MARGIN + square + 20
     ty = block_y + (square - 30) // 2
-    attr_font = _font(_MONO_LIGHT, 24)
-    attr = "IsThisBS?  ·  verified by Lenz"
-    attr_w = _text_width(attr_font, attr)
-    # BS label in the verdict's accessible text color, canonical verdict in ink.
-    # Long combos ("HARDLY BS — VERDICT: MOSTLY TRUE") can collide with the
-    # right-aligned attribution — when the full form doesn't fit the space
-    # left of it, draw the BS label alone (the canonical verdict still ships
-    # in the page's meta tags and JSON-LD).
     label = verdict.bs_label
     suffix = f" — VERDICT: {verdict.key.upper()}"
-    avail = CARD_W - MARGIN - attr_w - 40 - tx
     draw.text((tx, ty), label, font=vfont, fill=verdict.text_hex)
-    if _text_width(vfont, label + suffix) <= avail:
-        draw.text(
-            (tx + _text_width(vfont, label), ty),
-            suffix,
-            font=vfont,
-            fill=INK,
-        )
-
-    # --- Bottom-right attribution ---
-    draw.text(
-        (CARD_W - MARGIN - attr_w, block_y + 4),
-        attr,
-        font=attr_font,
-        fill=INK_60,
-    )
+    if _text_width(vfont, label + suffix) <= CARD_W - MARGIN - tx:
+        draw.text((tx + _text_width(vfont, label), ty), suffix, font=vfont, fill=INK)
     return img
 
 
