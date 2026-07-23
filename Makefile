@@ -33,6 +33,9 @@ serve:  ## Serve dist/ locally at http://localhost:8080
 test:  ## Run the offline pytest suite
 	pytest -q
 
+test-layout:  ## Layout invariants over dist/ in Chromium + WebKit (build first)
+	cd e2e && npm install && npx playwright install chromium webkit && npx playwright test
+
 lint:  ## ruff check + format check
 	ruff check . && ruff format --check .
 

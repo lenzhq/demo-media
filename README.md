@@ -46,13 +46,15 @@ Lenz API ──▶ fetch (incremental cache) ──▶ Check model ──▶ Jin
 
 - **Fetch** — [`isthisbs/fetch.py`](isthisbs/fetch.py) walks the public library
   via the SDK and pulls detail + related claims **only for new or changed
-  ids**, caching each to `.cache/claims/`. Second builds are nearly free.
+  ids** (fanned across a small worker pool), caching each to
+  `.cache/claims/`. Second builds are nearly free. A rotating pass re-fetches
+  the stalest related lists each build so new neighbors reach old articles.
 - **Model** — [`isthisbs/content.py`](isthisbs/content.py) turns raw API dicts
   into `Check` / `Source` / `Entity` dataclasses: filters `Error` verdicts and
   non-build languages, mints stable slugs, groups by section and entity.
 - **Render** — [`isthisbs/render.py`](isthisbs/render.py) +
   [`isthisbs/templates/`](isthisbs/templates/) emit every page (home, 8
-  sections, articles, entity hubs, collections, search, about, 404) with the
+  sections, articles, entity hubs, collections, search, about, privacy, 404) with the
   design system in [`isthisbs/static/`](isthisbs/static/).
 - **SEO/AEO** — [`isthisbs/seo.py`](isthisbs/seo.py) writes ClaimReview +
   NewsArticle JSON-LD, sitemaps (incl. news), Atom feeds, `robots.txt`,
@@ -61,6 +63,10 @@ Lenz API ──▶ fetch (incremental cache) ──▶ Check model ──▶ Jin
   1200×630 PNG social cards with Pillow, hash-cached.
 - **Search** — [Pagefind](https://pagefind.app/) indexes `dist/` after render
   for client-side search; skipped gracefully when unavailable.
+- **Community** — every article carries a prefilled *Flag this check* GitHub
+  issue form, and [`isthisbs/discussions.py`](isthisbs/discussions.py) bakes
+  👍/👎/💬 counts from GitHub Discussions into the pages at build time —
+  reader signal with zero client JS (counts are hidden until they're real).
 
 The whole thing is a few thousand lines of small, legible Python. That's the point.
 
@@ -155,7 +161,10 @@ Full setup lives in [`deploy/`](deploy/).
 
 Issues and PRs welcome. This is a public reference implementation — clarity is a
 feature. Run `make lint` and `make test` before opening a PR; both run offline.
-Licensed under the [MIT License](LICENSE).
+Touching templates or CSS? `make build && make test-layout` runs the layout
+invariants ([`e2e/layout.spec.ts`](e2e/layout.spec.ts)) in Chromium **and**
+WebKit — the iOS engine renders some things differently, and CI gates deploys
+on both. Licensed under the [MIT License](LICENSE).
 
 ---
 

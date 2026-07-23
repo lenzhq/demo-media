@@ -81,6 +81,31 @@ jobs:
           path: dist
           retention-days: 3
 
+      # --- Layout invariants (deploy gate) --------------------------------- #
+      # Computed layout assertions over the built dist/ in Chromium AND
+      # WebKit — the iOS engine renders differently (see e2e/layout.spec.ts);
+      # a red check here blocks the deploy.
+
+      - name: Set up Node 20 (layout tests)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
+
+      - name: Layout invariants (Chromium + WebKit)
+        run: |
+          cd e2e
+          npm ci
+          npx playwright install --with-deps chromium webkit
+          npx playwright test
+
       # --- Deploy (only once GCP_PROJECT is configured) -------------------- #
 
       - name: Authenticate to GCP via Workload Identity Federation

@@ -1,0 +1,12 @@
+{
+  "name": "isthisbs-layout-tests",
+  "private": true,
+  "description": "Layout-invariant tests over the built dist/ \u2014 computed assertions, no golden screenshots. Chromium + WebKit (the iOS engine).",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "pngjs": "^7.0.0"
+  }
+}
