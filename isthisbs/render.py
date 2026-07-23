@@ -209,10 +209,23 @@ def _truncate(text: str, limit: int) -> str:
 
 
 def _meta_description(check: Check) -> str:
-    """First summary paragraph, trimmed to a meta-description length."""
+    """Verdict-first meta description with a receipts hook (SEO round 2).
+
+    ``Verdict: X.`` catches is-it-true/false queries; the source count is the
+    trust signal competitor snippets don't have. Budgeted to ~158 chars.
+    """
     paras = check.summary_paragraphs
     body = paras[0] if paras else SITE.description
-    return _truncate(body, 155)
+    # First sentence of the summary (fall back to the trimmed paragraph).
+    sentence = body.split(". ")[0].rstrip(".") + "."
+    prefix = f"Verdict: {check.verdict.key}. "
+    suffix = (
+        f" Checked against {len(check.sources)} independent sources."
+        if check.sources
+        else ""
+    )
+    budget = 158 - len(prefix) - len(suffix)
+    return f"{prefix}{_truncate(sentence, max(40, budget))}{suffix}"
 
 
 def _feed_path(base_path: str, page_no: int) -> str:
@@ -345,7 +358,9 @@ def _render_sections(
                 nav_active=key,
                 canonical_path=url_path,
                 page_title=f"{section.title} — Fact Checks · {SITE.short_name}",
-                meta_description=section.blurb,
+                meta_description=(
+                    f"{section.blurb} {len(items)} claims fact-checked so far."
+                ),
                 og_type="website",
                 og_image_path=_DEFAULT_OG_PATH,
                 jsonld_blocks=[
@@ -380,7 +395,11 @@ def _render_articles(
         html = template.render(
             nav_active=check.section.key,
             canonical_path=check.path,
-            page_title=f"{_truncate(check.claim, 65)} · {SITE.short_name}",
+            # "Fact Check" = the query modifier; verdict = the answer in the
+            # SERP; no brand suffix (Google shows the site name separately).
+            page_title=(
+                f"Fact Check: {_truncate(check.claim, 50)} — {check.verdict.key}"
+            ),
             meta_description=_meta_description(check),
             og_type="article",
             og_image_path=check.og_path,
@@ -413,10 +432,10 @@ def _render_topics(
             html = template.render(
                 nav_active=None,
                 canonical_path=url_path,
-                page_title=f"{entity.name} — Claims Checked · {SITE.short_name}",
+                page_title=f"{entity.name} — Fact Checks · {SITE.short_name}",
                 meta_description=(
                     f"{len(members)} claims mentioning {entity.name}, "
-                    "each checked against independent sources by Lenz."
+                    "each fact-checked against independent sources by Lenz."
                 ),
                 og_type="website",
                 og_image_path=_DEFAULT_OG_PATH,

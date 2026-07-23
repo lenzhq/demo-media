@@ -206,3 +206,18 @@ def test_ga_present_when_configured(tmp_path, checks, monkeypatch):
     assert '<script async src="https://www.googletagmanager.com' in home
     notfound = (out / "404.html").read_text(encoding="utf-8")
     assert "G-TESTID123" in notfound
+
+
+def test_article_serp_contract(tmp_path, checks):
+    """SEO round 2: Fact-Check title with verdict; verdict-first description
+    with a receipts count. This shape is deliberate — see render.py."""
+    out = tmp_path / "dist-serp"
+    render.render_site(checks, out)
+    check = checks[0]
+    html = (out / check.path.lstrip("/") / "index.html").read_text(encoding="utf-8")
+    assert "<title>Fact Check: " in html
+    assert f" — {check.verdict.key}</title>" in html
+    assert f'content="Verdict: {check.verdict.key}. ' in html
+    if check.sources:
+        assert f"Checked against {len(check.sources)} independent sources." in html
+    assert 'property="og:site_name"' in html
