@@ -492,19 +492,16 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* ---- Reduced motion ---------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-/* Both attribution CTAs speak the readlink voice (mono, uppercase, meta
-   size) so their ↗ arrows render at the same size, and both carry the
-   hover-highlight breathing room (padding + negative margin, zero shift). */
+/* Attribution CTAs: one per line at every width — scannable, even hit
+   areas. All speak the readlink voice (mono, uppercase, meta size) so the
+   ↗ arrows render at the same size, and all carry the hover-highlight
+   breathing room (6px side padding + matching negative margin). */
+.attribution .readlink { display: block; width: fit-content; margin: 0 -6px; }
 .attribution__cta {
   font-family: var(--font-mono); font-size: var(--fs-meta);
   text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
-  padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
-}
-.attribution__cta--verify, .attribution__cta--flag { margin-left: calc(var(--sp-4) - 6px); }
-@media (max-width: 560px) {
-  .attribution__cta, .attribution__cta--verify {
-    display: block; margin: var(--sp-3) -6px -2px; text-align: left;
-  }
+  display: block; width: fit-content;
+  padding: 2px 6px; margin: var(--sp-2) -6px 0; border-radius: 2px;
 }
 
 /* Prose pages (About): a links row needs air before the next heading. */
