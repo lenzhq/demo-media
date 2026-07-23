@@ -491,7 +491,7 @@ main .footer__links { margin-bottom: var(--sp-8); }
 /* Touch targets (design-review F001): nav/folio links measured 15-25px tall.
    Expand the HIT AREA without moving a pixel: padding grows the target,
    negative margin cancels the layout shift. */
-.nav a, .footer__links a, .folio a:not(.folio__chip) {
+.nav a, .footer__col a, .folio a:not(.folio__chip) {
   padding: 12px 6px; margin: -12px -6px;
 }
 /* The bordered chip carries its own padding — inflating it would drag the
@@ -576,6 +576,6 @@ main .footer__links { margin-bottom: var(--sp-8); }
 
 /* Hover-highlight breathing room: the yellow block should not clip at the
    first/last letter. Padding + negative margin = zero layout shift. */
-.readlink, .band__more, .cloud__item, .crumbs a {
+.readlink, .band__more, .cloud__item, .crumbs a, .band__head a {
   padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
 }
