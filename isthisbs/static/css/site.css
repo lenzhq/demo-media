@@ -517,12 +517,18 @@ main .footer__links { margin-bottom: var(--sp-8); }
 /* Touch targets (design-review F001): nav/folio links measured 15-25px tall.
    Expand the HIT AREA without moving a pixel: padding grows the target,
    negative margin cancels the layout shift. */
+/* inline-block on all hit-area links: WebKit (iOS Safari) paints the
+   background of plain INLINE boxes with padding + negative margins almost
+   flush-left of the text (~0.7px left vs 7px right); inline-block boxes
+   paint identically in both engines. The negative margins still cancel the
+   layout growth, so nothing moves. */
 .nav a, .folio a:not(.folio__chip) {
+  display: inline-block;
   padding: 12px 6px; margin: -12px -6px;
 }
 /* Footer lists are stacked with their own spacing — a trimmer highlight
    reads better than the nav's tall touch padding. */
-.footer__col a { padding: 4px 6px; margin: -4px -6px; }
+.footer__col a { display: inline-block; padding: 4px 6px; margin: -4px -6px; }
 /* The bordered chip carries its own padding — inflating it would drag the
    pill over the folio hairline. Grow its tap area modestly instead. */
 .folio__chip { padding: 6px 12px; margin: -4px 0; }
@@ -606,9 +612,11 @@ main .footer__links { margin-bottom: var(--sp-8); }
 [hidden] { display: none !important; }
 
 /* Hover-highlight breathing room: the yellow block should not clip at the
-   first/last letter. Padding + negative margin = zero layout shift. */
+   first/last letter. Padding + negative margin = zero layout shift.
+   inline-block for WebKit — see the nav hit-area comment above. */
 .readlink, .band__more a, .band__more, .cloud__item, .crumbs a, .band__head a,
 .article__kicker a, .check-card__section {
+  display: inline-block;
   padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
 }
 
