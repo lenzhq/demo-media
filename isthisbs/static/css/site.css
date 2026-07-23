@@ -585,6 +585,7 @@ main .footer__links { margin-bottom: var(--sp-8); }
 }
 
 /* ---- Filed Under (article entity tags) --------------------------------- */
+.filed-under { margin-bottom: var(--sp-8); }
 .filed-under__tags { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin: 0; }
 .tag {
   font-family: var(--font-mono); font-size: var(--fs-label);
