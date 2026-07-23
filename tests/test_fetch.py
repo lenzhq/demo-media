@@ -296,3 +296,33 @@ def test_load_raw_skips_corrupt_and_non_object(tmp_path):
 
 def test_load_raw_missing_dir_returns_empty(tmp_path):
     assert fetch.load_raw(tmp_path / "nope") == []
+
+
+def test_mass_drop_guard_refuses_catalog_collapse(tmp_path):
+    """Eng-review F1: an anomalously tiny-but-'complete' catalog must never
+    gut the cache (deploying a near-empty site). >20% prospective drops are
+    refused and surfaced as an error."""
+    # Seed a 100-claim cache via a full sync.
+    catalog = [(f"W{i:04d}", "m") for i in range(100)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
+    assert len(list((tmp_path / "claims").glob("*.json"))) == 100
+
+    # Upstream anomaly: the catalog "completely" walks to only 5 claims.
+    tiny = catalog[:5]
+    stats = fetch.sync(FakeClient(catalog=tiny, detail=detail), tmp_path)
+    assert stats.dropped == 0  # refused
+    assert stats.errors >= 1  # surfaced, not silent
+    assert len(list((tmp_path / "claims").glob("*.json"))) == 100
+
+
+def test_small_drop_still_works(tmp_path):
+    """Normal churn (a few claims removed upstream) drops fine."""
+    catalog = [(f"X{i:04d}", "m") for i in range(30)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
+
+    smaller = catalog[:25]  # 5 of 30 gone — under max(10, 30//5=6)... floor 10
+    stats = fetch.sync(FakeClient(catalog=smaller, detail=detail), tmp_path)
+    assert stats.dropped == 5
+    assert len(list((tmp_path / "claims").glob("*.json"))) == 25

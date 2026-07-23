@@ -177,8 +177,22 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
     # entry. A partial walk (max_pages) or an aborted one (list error) must
     # never mass-delete the cache.
     if max_pages is None and walk_completed:
-        for vid in list(manifest):
-            if vid not in seen:
+        doomed = [vid for vid in manifest if vid not in seen]
+        # Mass-drop guard: a "complete" walk of an anomalously tiny catalog
+        # (bad ``total``, upstream regression) must not gut the cache and
+        # deploy a near-empty site. Refuse when the drop would exceed 20% of
+        # the manifest (floor of 10 so small catalogs behave normally).
+        drop_limit = max(10, len(manifest) // 5)
+        if len(doomed) > drop_limit:
+            logger.warning(
+                "Drop pass would remove %d of %d cached claims — refusing "
+                "(upstream anomaly? catalog shrank past the 20%% guard)",
+                len(doomed),
+                len(manifest),
+            )
+            stats.errors += 1
+        else:
+            for vid in doomed:
                 _drop(claims_dir, manifest, vid)
                 stats.dropped += 1
 

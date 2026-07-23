@@ -58,7 +58,17 @@ jobs:
         # Deliberately absent from preview.yml so PR previews never pollute GA.
         env:
           GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
-        run: python build.py
+        run: |
+          set -o pipefail
+          python build.py 2>&1 | tee build.log
+
+      - name: Build summary (Actions UI observability)
+        if: always()
+        run: |
+          {
+            echo "### IsThisBS build"
+            grep -E "sync:|Editorial floor|Rendered|OG cards|Build complete|ERROR" build.log || echo "_no build log_"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload dist artifact (debug)
         uses: actions/upload-artifact@v4
@@ -94,3 +104,16 @@ jobs:
           --only hosting
           --project ${{ vars.GCP_PROJECT }}
           --non-interactive
+
+      - name: Notify on failure (optional — set DISCORD_WEBHOOK_URL secret)
+        if: failure()
+        env:
+          HOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "No DISCORD_WEBHOOK_URL secret configured — skipping notification."
+            exit 0
+          fi
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d "{\"content\":\"⚠️ IsThisBS daily build FAILED: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$HOOK"

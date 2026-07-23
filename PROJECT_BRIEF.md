@@ -188,6 +188,7 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 | 1 | /plan-ceo-review (SELECTIVE EXPANSION) | COMPLETE | 4 findings, 5 expansion candidates presented |
 | 2 | /plan-design-review (+PSI round) | COMPLETE | 3 design fixes + 1 retracted, 3 PSI optimizations |
 | 3 | /codex review (cross-model, GPT) | COMPLETE | 2 P1 + 5 P2 findings — 7/7 fixed same-session |
+| 4 | /plan-eng-review (HOLD SCOPE) | COMPLETE | 1 critical + 3 rigor findings — 4/4 fixed |
 
 **Findings & dispositions:**
 1. **Editorial quality floor missing** → ACCEPTED (E1). Implemented in `content.py`
@@ -218,11 +219,17 @@ E3 DEFERRED (README covers v1) · E5 DEFERRED. Deferred items in TODOS.md.
 - 6 regression tests added (hostile schemes/ids/qids, sitemap pagination). Suite: 92 green.
 - Cross-model value confirmed: both P1s and 4 of 5 P2s were missed by the same-model reviews.
 
+**Eng review (run 4, HOLD SCOPE) — architecture verified, 4 findings fixed:**
+- [critical] **Mass-drop guard**: an anomalously tiny-but-"complete" catalog walk could gut the cache and deploy a near-empty site → drop pass now refuses >20% removals (floor 10), logs loudly, counts an error. Regression-tested both directions (refusal at 95%, normal 5-claim churn still drops).
+- CI observability: daily-build failures now notify via optional Discord webhook (dormant without the Actions secret — the build itself stays keyless); sync/floor/render stats land in the Actions job summary (`pipefail`-safe tee).
+- Unattended-build hygiene: dependency major-version caps in pyproject.
+- Verified-safe by inspection (recorded): zero-checks build aborts → deploy never runs (fail-closed); per-claim API errors keep stale cache entries (stale beats gone); actions/cache saves only on success (no poisoned cache).
+- Test pyramid (right shape for a static generator): 94 offline unit/integration tests (PR CI) → real-API daily build as the live smoke → PR preview channels as visual smoke. Stripe-style paid-endpoint tests: n/a (keyless reads only).
+
 **Premise verdict:** right problem, sharpened KPI — developer conviction first,
 AEO second; measure at launch. Stack choice (Python+Jinja static) re-validated
 against alternatives (Astro/Hugo, Django SSR) and stands.
 
-VERDICT: PASS — scope approved as amended (E1+E4 folded in); scaffold validated
-green (85 tests, live keyless build).
+VERDICT: ALL FOUR REVIEWS CLEARED (CEO + Design + Codex + Eng) — 18 findings raised across four lenses, 18 fixed, 0 open. Scaffold validated green: 94 offline tests, ruff clean, live keyless build, PSI-optimized output.
 
 NO UNRESOLVED DECISIONS
