@@ -431,7 +431,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 
 /* ---- Search (Pagefind → our tokens) ------------------------------------ */
 .pf-search { margin-top: var(--sp-4); }
-:root {
+/* :root:root outranks Pagefind's own :root defaults — its stylesheet loads
+   after ours and would otherwise win the cascade with hardcoded LIGHT values,
+   which is exactly what breaks dark mode. Our tokens flip with the scheme. */
+:root:root {
   --pagefind-ui-scale: 1;
   --pagefind-ui-primary: var(--ink);
   --pagefind-ui-text: var(--ink);

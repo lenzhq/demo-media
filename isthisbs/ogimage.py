@@ -34,7 +34,7 @@ from .config import Verdict
 logger = logging.getLogger(__name__)
 
 # Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "1"
+TEMPLATE_VERSION = "2"  # v2: verdict/attribution collision guard
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -240,21 +240,27 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
     vfont = _font(_MONO, 30)
     tx = MARGIN + square + 20
     ty = block_y + (square - 30) // 2
-    # BS label in the verdict's accessible text color, canonical verdict in ink.
-    label = verdict.bs_label
-    draw.text((tx, ty), label, font=vfont, fill=verdict.text_hex)
-    tx += _text_width(vfont, label)
-    draw.text(
-        (tx, ty),
-        f" — VERDICT: {verdict.key.upper()}",
-        font=vfont,
-        fill=INK,
-    )
-
-    # --- Bottom-right attribution ---
     attr_font = _font(_MONO_LIGHT, 24)
     attr = "IsThisBS?  ·  verified by Lenz"
     attr_w = _text_width(attr_font, attr)
+    # BS label in the verdict's accessible text color, canonical verdict in ink.
+    # Long combos ("HARDLY BS — VERDICT: MOSTLY TRUE") can collide with the
+    # right-aligned attribution — when the full form doesn't fit the space
+    # left of it, draw the BS label alone (the canonical verdict still ships
+    # in the page's meta tags and JSON-LD).
+    label = verdict.bs_label
+    suffix = f" — VERDICT: {verdict.key.upper()}"
+    avail = CARD_W - MARGIN - attr_w - 40 - tx
+    draw.text((tx, ty), label, font=vfont, fill=verdict.text_hex)
+    if _text_width(vfont, label + suffix) <= avail:
+        draw.text(
+            (tx + _text_width(vfont, label), ty),
+            suffix,
+            font=vfont,
+            fill=INK,
+        )
+
+    # --- Bottom-right attribution ---
     draw.text(
         (CARD_W - MARGIN - attr_w, block_y + 4),
         attr,
