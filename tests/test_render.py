@@ -172,3 +172,26 @@ def test_entity_page_only_for_two_plus_claims(tmp_path, make_detail):
     render.render_site(checks, tmp_path)
     assert (tmp_path / "topic" / "shared-topic" / "index.html").is_file()
     assert not (tmp_path / "topic" / "solo-topic").exists()
+
+
+def test_ga_absent_by_default(tmp_path, checks, monkeypatch):
+    """No GA_MEASUREMENT_ID at build time → zero analytics markup ships."""
+    monkeypatch.delenv("GA_MEASUREMENT_ID", raising=False)
+    out = tmp_path / "dist-ga-off"
+    render.render_site(checks, out)
+    home = (out / "index.html").read_text(encoding="utf-8")
+    assert "googletagmanager" not in home
+    assert "gtag" not in home
+
+
+def test_ga_present_when_configured(tmp_path, checks, monkeypatch):
+    """GA_MEASUREMENT_ID set → async gtag snippet with that id, on every page."""
+    monkeypatch.setenv("GA_MEASUREMENT_ID", "G-TESTID123")
+    out = tmp_path / "dist-ga-on"
+    render.render_site(checks, out)
+    home = (out / "index.html").read_text(encoding="utf-8")
+    assert "googletagmanager.com/gtag/js?id=G-TESTID123" in home
+    assert "gtag('config', 'G-TESTID123')" in home
+    assert '<script async src="https://www.googletagmanager.com' in home
+    notfound = (out / "404.html").read_text(encoding="utf-8")
+    assert "G-TESTID123" in notfound

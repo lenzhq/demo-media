@@ -113,14 +113,17 @@ def test_build_checks_never_crashes_on_malformed():
 
 
 def test_parse_check_sources_require_url(make_detail):
+    # Two URL-bearing sources (clears the editorial floor) + one URL-less
+    # entry that must be dropped by parsing.
     doc = make_detail(
         sources=[
             {"source_name": "A", "title": "keep", "url": "https://x/1"},
             {"source_name": "B", "title": "drop", "url": ""},
+            {"source_name": "C", "title": "also-keep", "url": "https://x/2"},
         ]
     )
     check = content.build_checks([doc])[0]
-    assert [s.title for s in check.sources] == ["keep"]
+    assert [s.title for s in check.sources] == ["keep", "also-keep"]
 
 
 def test_parse_check_panel_agreement_lowercased(make_detail):
@@ -318,3 +321,53 @@ class TestRelatedFallback:
         checks = content.build_checks(docs)
         base = next(c for c in checks if c.verification_id == "lonely12")
         assert content.related_fallback(base, checks) == []
+
+
+class TestEditorialFloor:
+    """E1: thin checks never publish; the lead slot prefers receipts."""
+
+    def test_too_few_sources_withheld(self, make_detail):
+        doc = make_detail(
+            verification_id="thin0001",
+            sources=[{"source_name": "A", "title": "only one", "url": "https://x/1"}],
+        )
+        assert content.build_checks([doc]) == []
+
+    def test_thin_summary_withheld(self, make_detail):
+        doc = make_detail(verification_id="short001", executive_summary="Too short.")
+        assert content.build_checks([doc]) == []
+
+    def test_publishable_check_passes(self, make_detail):
+        doc = make_detail(verification_id="good0001")  # factory defaults clear it
+        assert len(content.build_checks([doc])) == 1
+
+    def test_pick_lead_prefers_well_receipted(self, make_detail):
+        three_sources = [
+            {"source_name": f"S{i}", "title": f"t{i}", "url": f"https://x/{i}"}
+            for i in range(3)
+        ]
+        docs = [
+            make_detail(  # newest, but only the default 2 sources
+                verification_id="newest01", created_at="2026-07-22T00:00:00Z"
+            ),
+            make_detail(  # older, 3 sources → wins the lead slot
+                verification_id="lead0001",
+                created_at="2026-07-10T00:00:00Z",
+                sources=three_sources,
+            ),
+        ]
+        checks = content.build_checks(docs)
+        lead = content.pick_lead(checks)
+        assert lead is not None and lead.verification_id == "lead0001"
+
+    def test_pick_lead_falls_back_to_newest(self, make_detail):
+        docs = [
+            make_detail(verification_id="only0001", created_at="2026-07-22T00:00:00Z"),
+            make_detail(verification_id="only0002", created_at="2026-07-01T00:00:00Z"),
+        ]
+        checks = content.build_checks(docs)
+        lead = content.pick_lead(checks)
+        assert lead is not None and lead.verification_id == "only0001"
+
+    def test_pick_lead_empty(self):
+        assert content.pick_lead([]) is None

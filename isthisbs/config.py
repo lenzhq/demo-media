@@ -164,6 +164,19 @@ LANGS: tuple[str, ...] = tuple(
     if lang.strip()
 )
 
+# Editorial quality floor (CEO review E1): a check must clear this bar to be
+# published at all. The catalog is screened upstream for safety, not editorial
+# weight — thin checks (no receipts, one-line reasoning) would read like a
+# database dump, so they never become articles. Tune, don't remove.
+# Tuning note (measured on live catalog data, 2026-07-23): real checks carry
+# 18-41 cited sources and 280-460-char summaries — the floor exists to catch
+# DEGENERATE content (empty/one-line summaries, sourceless checks) if the
+# upstream shape ever changes, not to bisect the normal distribution.
+ARTICLE_MIN_SOURCES = 2  # cited sources required to publish a check
+ARTICLE_MIN_SUMMARY_CHARS = 200  # catches broken/empty summaries only
+LEAD_MIN_SOURCES = 3  # the home lead slot wants a well-receipted check
+SOURCES_SHOWN_MAX = 10  # receipts rendered on an article; rest link to Lenz
+
 PAGE_SIZE = 20  # cards per page on section/latest/topic feeds
 COLLECTION_SIZE = 40  # items in /bs-files/ and /checks-out/
 ENTITY_MIN_CLAIMS = 2  # entities need >= this many claims to earn a /topic/ page

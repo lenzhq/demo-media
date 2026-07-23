@@ -53,6 +53,11 @@ jobs:
         run: pip install -e ".[search]"
 
       - name: Build site (keyless — no API key anywhere)
+        # GA_MEASUREMENT_ID is a repo *variable* (not a secret — GA4 IDs are
+        # public by nature); unset → the site ships zero analytics markup.
+        # Deliberately absent from preview.yml so PR previews never pollute GA.
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
         run: python build.py
 
       - name: Upload dist artifact (debug)

@@ -32,11 +32,37 @@ def _next_id() -> str:
     return f"vid{next(_ID_COUNTER):05d}"
 
 
+# Long enough to clear config.ARTICLE_MIN_SUMMARY_CHARS (the E1 editorial
+# floor) — thin-summary cases override this explicitly.
 _DEFAULT_SUMMARY = (
     "The evidence does not support this claim.\n\n"
     "Independent sources contradict the specific figure cited, and the "
-    "original context has been stripped away."
+    "original context has been stripped away. Reviewing the primary data "
+    "shows the number originates from a misread press release that was "
+    "corrected within days of publication.\n\n"
+    "Multiple follow-up analyses reach the same conclusion, and no "
+    "peer-reviewed work supports the stronger version of the statement "
+    "as circulated on social media."
 )
+
+# Two sources by default so factory-made checks clear ARTICLE_MIN_SOURCES;
+# thin-check cases pass sources=[] or a single source explicitly.
+_DEFAULT_SOURCES = [
+    {
+        "source_name": "Example Journal",
+        "title": "Primary study on the claim",
+        "url": "https://example.org/study",
+        "snippet": "Key finding text.",
+        "date": "2026-06-01",
+    },
+    {
+        "source_name": "Fact Desk",
+        "title": "Independent analysis",
+        "url": "https://example.com/analysis",
+        "snippet": "Corroborating detail.",
+        "date": "2026-06-10",
+    },
+]
 
 
 def _build_detail(
@@ -71,7 +97,7 @@ def _build_detail(
         "presumed_intent": presumed_intent,
         "entities": entities if entities is not None else [],
         "warnings": warnings if warnings is not None else [],
-        "sources": sources if sources is not None else [],
+        "sources": sources if sources is not None else list(_DEFAULT_SOURCES),
         "audit": {
             # These internal fields MUST NOT leak into any rendered surface.
             "adjudication_summary": "Panel adjudication summary (internal).",

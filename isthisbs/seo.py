@@ -35,6 +35,7 @@ from .config import (
     SECTION_FEED_SIZE,
     SECTIONS,
     SITE,
+    SOURCES_SHOWN_MAX,
 )
 from .content import Check, group_by_entity, group_by_section
 
@@ -541,8 +542,13 @@ def _write_llms_full_txt(checks: list[Check], out_dir: Path) -> None:
             f"LENZ: {check.lenz_url}",
         ]
         if check.sources:
+            # Cap like the article page does (SOURCES_SHOWN_MAX) — 40 URLs per
+            # claim would bloat the file without adding ingestion value; the
+            # LENZ line above carries the full source list.
             block.append("SOURCES:")
-            block += [f"  - {source.url}" for source in check.sources]
+            block += [
+                f"  - {source.url}" for source in check.sources[:SOURCES_SHOWN_MAX]
+            ]
         blocks.append("\n".join(block))
     (out_dir / "llms-full.txt").write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
 

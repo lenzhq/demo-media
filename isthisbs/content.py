@@ -19,10 +19,13 @@ from typing import Any
 from slugify import slugify
 
 from .config import (
+    ARTICLE_MIN_SOURCES,
+    ARTICLE_MIN_SUMMARY_CHARS,
     COLLECTION_SIZE,
     ENTITY_MIN_CLAIMS,
     EXCLUDED_VERDICTS,
     LANGS,
+    LEAD_MIN_SOURCES,
     SITE,
     VERDICTS,
     Section,
@@ -234,21 +237,64 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
     )
 
 
+def meets_editorial_floor(check: Check) -> bool:
+    """The publish bar: enough receipts and a real explanation.
+
+    The Lenz catalog is screened upstream for safety, not editorial weight.
+    A check with fewer than ARTICLE_MIN_SOURCES cited sources or a one-line
+    summary would make a thin, low-trust article — it stays out of the site
+    entirely (no page, no listing, no dead links).
+    """
+    return (
+        len(check.sources) >= ARTICLE_MIN_SOURCES
+        and len(check.executive_summary) >= ARTICLE_MIN_SUMMARY_CHARS
+    )
+
+
 def build_checks(raw_docs: list[dict[str, Any]]) -> list[Check]:
-    """Parse + filter + sort (newest first). Silently skips malformed docs."""
+    """Parse + filter + editorial floor + sort (newest first).
+
+    Silently skips malformed docs; logs how many parsed checks the editorial
+    floor withheld so a floor misconfiguration is visible in build output.
+    """
     seen: set[str] = set()
     checks: list[Check] = []
+    floored = 0
     for doc in raw_docs:
         try:
             check = _parse_check(doc)
         except Exception:  # one bad document must never sink the build
             logger.exception("Skipping malformed cached document")
             continue
-        if check and check.verification_id not in seen:
-            seen.add(check.verification_id)
-            checks.append(check)
+        if not check or check.verification_id in seen:
+            continue
+        seen.add(check.verification_id)
+        if not meets_editorial_floor(check):
+            floored += 1
+            continue
+        checks.append(check)
     checks.sort(key=lambda c: c.created_dt, reverse=True)
+    if floored:
+        logger.info(
+            "Editorial floor: published %d checks, withheld %d thin ones",
+            len(checks),
+            floored,
+        )
     return checks
+
+
+def pick_lead(checks: list[Check]) -> Check | None:
+    """The home lead: newest check with LEAD_MIN_SOURCES+ receipts.
+
+    Falls back to the newest check outright — the lead slot must never be
+    empty while the site has content.
+    """
+    if not checks:
+        return None
+    for check in checks:
+        if len(check.sources) >= LEAD_MIN_SOURCES:
+            return check
+    return checks[0]
 
 
 # --------------------------------------------------------------------------- #

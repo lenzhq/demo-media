@@ -1,0 +1,58 @@
+# PR preview deploys (CEO review E4).
+#
+# Every same-repo pull request gets a live preview on a Firebase Hosting
+# preview channel (pr-<number>, auto-expires). Fork PRs are skipped: they
+# can't mint WIF tokens (id-token permission doesn't extend to forks), and
+# we don't deploy code we haven't reviewed anyway. Dormant until the GCP
+# vars are configured — the job is green (build-only) before provisioning.
+name: preview
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    # Same-repo PRs only (see header comment).
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[search]"
+
+      - name: Build (keyless, small catalog slice for speed)
+        run: python build.py --max-pages 5
+
+      - name: Authenticate to GCP (WIF — no stored keys)
+        if: vars.GCP_PROJECT != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        if: vars.GCP_PROJECT != ''
+        with:
+          node-version: 20
+
+      - name: Deploy preview channel
+        if: vars.GCP_PROJECT != ''
+        run: |
+          npx firebase-tools@13 hosting:channel:deploy "pr-${{ github.event.number }}" \
+            --expires 7d \
+            --project "${{ vars.GCP_PROJECT }}" \
+            --non-interactive

@@ -180,3 +180,34 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 - Powered-by-Lenz disclosure + backlink sitewide and per article; every article links to `lenz.io/c/{verification_id}`.
 - Zero secrets in repo or CI (WIF only); `pytest` green offline; ruff clean; scheduled Action builds and deploys.
 - Design is visibly distinct from lenz.io; headlines stay neutral; wit confined to interface labels.
+
+## GSTACK REVIEW REPORT
+
+| Run | Reviewer | Status | Findings |
+|-----|----------|--------|----------|
+| 1 | /plan-ceo-review (SELECTIVE EXPANSION) | COMPLETE | 4 findings, 5 expansion candidates presented |
+
+**Findings & dispositions:**
+1. **Editorial quality floor missing** → ACCEPTED (E1). Implemented in `content.py`
+   (`meets_editorial_floor`: ≥2 sources + ≥200-char summary; `pick_lead`: newest
+   check with ≥3 sources). Tuned against live catalog data: real checks carry
+   18–41 sources and 280–460-char summaries, so the floor catches degenerate
+   content only — plus a NEW data-driven finding: receipts render capped at 10
+   (`SOURCES_SHOWN_MAX`) with "+N more on Lenz" link (article page + llms-full.txt).
+2. **Zero measurement** → RESOLVED same-day: Pavel opted into GA4 now (build-time `GA_MEASUREMENT_ID` variable, never hardcoded; absent → zero markup; previews untracked).
+3. **ClaimReview expectations** → calibrated: entity/AEO hygiene, not a
+   rich-results play. No change.
+4. **Launch/distribution unplanned** → recorded in TODOS.md (Pavel/Vicky, outside repo).
+
+**Expansion decisions (Pavel, 2026-07-23):** E1 ACCEPTED · E4 ACCEPTED
+(PR preview channels, `.github/workflows/preview.yml`) · E2 DEFERRED-to-launch ·
+E3 DEFERRED (README covers v1) · E5 DEFERRED. Deferred items in TODOS.md.
+
+**Premise verdict:** right problem, sharpened KPI — developer conviction first,
+AEO second; measure at launch. Stack choice (Python+Jinja static) re-validated
+against alternatives (Astro/Hugo, Django SSR) and stands.
+
+VERDICT: PASS — scope approved as amended (E1+E4 folded in); scaffold validated
+green (85 tests, live keyless build).
+
+NO UNRESOLVED DECISIONS

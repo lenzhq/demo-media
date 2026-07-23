@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -37,6 +38,7 @@ from .config import (
     RELATED_LIMIT,
     SECTIONS,
     SITE,
+    SOURCES_SHOWN_MAX,
     VERDICT_ORDER,
 )
 from .content import (
@@ -46,6 +48,7 @@ from .content import (
     group_by_entity,
     group_by_section,
     paginate,
+    pick_lead,
     related_fallback,
 )
 
@@ -125,7 +128,12 @@ def _build_env() -> Environment:
     env.globals["SITE"] = SITE
     env.globals["SECTIONS"] = SECTIONS
     env.globals["VERDICT_ORDER"] = VERDICT_ORDER
+    env.globals["SOURCES_SHOWN_MAX"] = SOURCES_SHOWN_MAX
     env.globals["build_date"] = datetime.now(UTC).date()
+    # GA4 is opt-in at build time: set GA_MEASUREMENT_ID (e.g. a GitHub Actions
+    # variable) and the gtag snippet ships; unset → zero analytics markup.
+    # Never hardcoded — the public repo stays configuration-free.
+    env.globals["GA_MEASUREMENT_ID"] = os.environ.get("GA_MEASUREMENT_ID", "")
 
     # Custom filters.
     env.filters["datefmt"] = _datefmt
@@ -265,8 +273,8 @@ def _render_home(
     entity_groups: list[EntityGroup],
 ) -> None:
     """The front page: lead + fresh rail + strips + section blocks + cloud."""
-    lead = checks[0] if checks else None
-    rail = checks[1 : 1 + HOME_RAIL_SIZE]
+    lead = pick_lead(checks)  # newest well-receipted check (E1 editorial floor)
+    rail = [c for c in checks if lead is None or c is not lead][:HOME_RAIL_SIZE]
 
     # Per-section blocks: only sections that actually have checks, in nav order.
     section_blocks = [

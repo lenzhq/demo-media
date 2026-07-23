@@ -69,8 +69,10 @@
   {% if check.sources %}
   <section class="article__receipts">
     <h2 class="block-head">The Receipts</h2>
+    {#- Real checks carry 18-41 sources; render the top slice and hand the
+        long tail to the canonical Lenz page (config.SOURCES_SHOWN_MAX). -#}
     <ol class="receipts">
-      {% for source in check.sources %}
+      {% for source in check.sources[:SOURCES_SHOWN_MAX] %}
       <li class="receipt">
         <a class="receipt__title" href="{{ source.url }}" rel="noopener nofollow" target="_blank">{{ source.title }}</a>
         <p class="receipt__meta">
@@ -81,6 +83,12 @@
       </li>
       {% endfor %}
     </ol>
+    {% if check.sources|length > SOURCES_SHOWN_MAX %}
+    <p class="receipts__more">
+      + {{ check.sources|length - SOURCES_SHOWN_MAX }} more sources —
+      <a href="{{ check.lenz_url }}" rel="noopener">see the full list on Lenz</a>
+    </p>
+    {% endif %}
   </section>
   {% endif %}
 </article>

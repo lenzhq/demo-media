@@ -109,6 +109,7 @@ Everything is environment-overridable; sensible defaults ship in
 
 | Setting | Env var | Default | Purpose |
 |---|---|---|---|
+| Google Analytics | `GA_MEASUREMENT_ID` | *(unset — no analytics)* | GA4 id (e.g. `G-XXXX`); when unset the site ships zero analytics markup |
 | Site base URL | `SITE_BASE_URL` | `https://isthisbs.org` | Canonical URLs, sitemaps, OG tags |
 | Lenz API base | `LENZ_BASE_URL` | `https://lenz.io/api/v1` | Where the SDK reads the catalog |
 | Build languages | `BUILD_LANGS` | `en` | Comma-separated language filter (`en,de`) |
