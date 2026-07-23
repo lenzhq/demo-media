@@ -209,7 +209,13 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   overflow-x: auto; -webkit-overflow-scrolling: touch;
   justify-content: center;
 }
-.masthead--compact .nav__list { justify-content: flex-end; padding: 0 6px; }
+/* 12px vertical padding + cancelling margin: the touch-target rule gives
+   every link a ±12px vertical overhang; with 0 padding the overhang made
+   the scroll-container list scrollable VERTICALLY on mobile (the row could
+   be dragged up and down). Padding absorbs it; margin keeps the height. */
+.masthead--compact .nav__list {
+  justify-content: flex-end; padding: 12px 6px; margin: -12px 0;
+}
 /* When the list overflows (mobile), centered/end justification puts part of
    the overflow past the reachable scroll range (scrollLeft can't go negative
    — the first links were clipped ~170px off-screen). Start-align it; the 6px
