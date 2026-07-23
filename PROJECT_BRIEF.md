@@ -186,6 +186,7 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 | Run | Reviewer | Status | Findings |
 |-----|----------|--------|----------|
 | 1 | /plan-ceo-review (SELECTIVE EXPANSION) | COMPLETE | 4 findings, 5 expansion candidates presented |
+| 2 | /plan-design-review (+PSI round) | COMPLETE | 3 design fixes + 1 retracted, 3 PSI optimizations |
 
 **Findings & dispositions:**
 1. **Editorial quality floor missing** → ACCEPTED (E1). Implemented in `content.py`
@@ -202,6 +203,12 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 **Expansion decisions (Pavel, 2026-07-23):** E1 ACCEPTED · E4 ACCEPTED
 (PR preview channels, `.github/workflows/preview.yml`) · E2 DEFERRED-to-launch ·
 E3 DEFERRED (README covers v1) · E5 DEFERRED. Deferred items in TODOS.md.
+
+**Design review (run 2) — rated against DESIGN.md, reviewed on rendered output (desktop/article/mobile screenshots of real catalog content):**
+- Visual identity 9/10 (distinct newsprint brand, real X mark, zero slop patterns); IA/navigation 9/10; article anatomy 9/10; states/edge cases 8/10.
+- **Fixed:** BS Meter under-weighted at hero size (bigger stops, 2px track, halo marker — it's the signature element); front-page lead repeated in 3 slots (now deduped from rail/strips/section blocks); long claims (>140 chars) swamped the hero scale (conditional `claim-quote--long`).
+- **Retracted after verification:** "article column left-stranded" — CSS already centers the measure; the left-anchored breadcrumb is intentional convention.
+- **PSI round (Pavel):** stylesheet now minified + content-hashed (`site.<hash>.css`) so the immutable 7-day cache header can never serve stale styles; `filter.js` confirmed deferred; GA gets `preconnect` when enabled; measured locally: 3ms DOM parse, zero render-blocking assets, zero webfonts, JS-free home page.
 
 **Premise verdict:** right problem, sharpened KPI — developer conviction first,
 AEO second; measure at launch. Stack choice (Python+Jinja static) re-validated

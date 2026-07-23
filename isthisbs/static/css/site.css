@@ -246,8 +246,8 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   max-width: 22rem;
 }
 .meter__end {
-  font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--ink-60); white-space: nowrap;
+  font-size: 0.625rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-60); white-space: nowrap;
 }
 .meter__stops {
   position: relative; display: flex; align-items: center; justify-content: space-between;
@@ -256,15 +256,17 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* connecting hairline behind the stops */
 .meter__stops::before {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
-  height: 1px; background: var(--hairline); transform: translateY(-50%);
+  height: 2px; background: var(--hairline); transform: translateY(-50%);
 }
 .meter__stop {
-  position: relative; width: 10px; height: 10px; flex: none;
-  border: 1px solid var(--hairline); background: var(--paper);
+  position: relative; width: 12px; height: 12px; flex: none;
+  border: 2px solid var(--hairline); background: var(--paper);
 }
 .meter__stop.is-active {
   background: var(--fill); border-color: var(--fill);
-  transform: scale(1.6); z-index: 1;
+  outline: 2px solid var(--paper); outline-offset: 1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fill) 35%, transparent);
+  transform: scale(1.7); z-index: 1;
 }
 .meter__verdict { margin: var(--sp-3) 0 0; }
 .meter__label {
@@ -391,6 +393,7 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .article__kicker { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--ink-60); margin: 0 0 var(--sp-4); }
 .article__kicker a { text-decoration: none; }
+.claim-quote--long { font-size: clamp(1.625rem, 3.8vw, 2.375rem) !important; }
 .article__title { font-size: var(--fs-hero); font-weight: 800; letter-spacing: -0.015em;
   line-height: 1.08; margin: 0 0 var(--sp-6); }
 .article__verdict { border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);

@@ -54,13 +54,14 @@
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
-  <link rel="stylesheet" href="/static/css/site.css">
+  <link rel="stylesheet" href="{{ CSS_PATH }}">
 
   {% for ld in jsonld_blocks|default([]) %}
   {{ ld|jsonld }}
   {% endfor %}
   {% block head_extra %}{% endblock %}
 {% if GA_MEASUREMENT_ID %}
+  <link rel="preconnect" href="https://www.googletagmanager.com">
   {#- Google Analytics (GA4). Async so it never blocks rendering; emitted only
       when GA_MEASUREMENT_ID is set at build time (PR previews build without
       it, so preview traffic never pollutes the property). -#}

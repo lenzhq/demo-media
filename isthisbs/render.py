@@ -18,6 +18,7 @@ No network, no secrets, no state — a pure function of its ``checks`` argument.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -80,7 +81,9 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    css_path, css_body = _css_asset()
     env = _build_env()
+    env.globals["CSS_PATH"] = css_path
 
     # Resolve related refs against *locally rendered* checks only — never link
     # to a claim that isn't on this site.
@@ -100,7 +103,7 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
     _render_about(env, out_dir)
     _render_404(env, out_dir)
 
-    _copy_static(out_dir)
+    _copy_static(out_dir, css_path, css_body)
 
     logger.info(
         "Rendered %d articles, %d section hubs, %d topics into %s",
@@ -274,13 +277,19 @@ def _render_home(
 ) -> None:
     """The front page: lead + fresh rail + strips + section blocks + cloud."""
     lead = pick_lead(checks)  # newest well-receipted check (E1 editorial floor)
-    rail = [c for c in checks if lead is None or c is not lead][:HOME_RAIL_SIZE]
+    lead_id = lead.verification_id if lead else ""
+
+    def sans_lead(items: list[Check]) -> list[Check]:
+        """The lead story never repeats in another front-page slot."""
+        return [c for c in items if c.verification_id != lead_id]
+
+    rail = sans_lead(checks)[:HOME_RAIL_SIZE]
 
     # Per-section blocks: only sections that actually have checks, in nav order.
     section_blocks = [
-        {"section": SECTIONS[key], "checks": items[:HOME_SECTION_SIZE]}
+        {"section": SECTIONS[key], "checks": sans_lead(items)[:HOME_SECTION_SIZE]}
         for key, items in sections.items()
-        if items
+        if sans_lead(items)
     ]
 
     html = env.get_template("home.html").render(
@@ -293,8 +302,8 @@ def _render_home(
         jsonld_blocks=[seo.organization(), seo.website()],
         lead=lead,
         rail=rail,
-        bs_files=colls["bs_files"][:HOME_STRIP_SIZE],
-        checks_out=colls["checks_out"][:HOME_STRIP_SIZE],
+        bs_files=sans_lead(colls["bs_files"])[:HOME_STRIP_SIZE],
+        checks_out=sans_lead(colls["checks_out"])[:HOME_STRIP_SIZE],
         section_blocks=section_blocks,
         entity_cloud=_entity_cloud(entity_groups),
     )
@@ -564,12 +573,43 @@ def _render_404(env: Environment, out_dir: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _copy_static(out_dir: Path) -> None:
-    """Copy ``static/**`` into ``out_dir/static/`` and hoist the favicon."""
+_CSS_SRC = "css/site.css"
+
+
+def _minify_css(css: str) -> str:
+    """Tiny whitespace/comment minifier for our own hand-written CSS.
+
+    Not a general-purpose minifier — it only strips comments and collapses
+    whitespace, which is safe for site.css (no data URIs with spaces, no
+    string literals that need preserving).
+    """
+    import re
+
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    css = re.sub(r"\s+", " ", css)
+    css = re.sub(r"\s*([{}:;,>])\s*", r"\1", css)
+    return css.replace(";}", "}").strip()
+
+
+def _css_asset() -> tuple[str, str]:
+    """(hashed public path, minified body) for the single stylesheet."""
+    src = (_STATIC_DIR / _CSS_SRC).read_text(encoding="utf-8")
+    mini = _minify_css(src)
+    digest = hashlib.sha1(mini.encode("utf-8")).hexdigest()[:8]
+    return f"/static/css/site.{digest}.css", mini
+
+
+def _copy_static(out_dir: Path, css_path: str, css_body: str) -> None:
+    """Copy ``static/**``, swap in the hashed/minified stylesheet, hoist favicon."""
     if not _STATIC_DIR.is_dir():
         logger.warning("Static directory missing: %s", _STATIC_DIR)
         return
     shutil.copytree(_STATIC_DIR, out_dir / "static", dirs_exist_ok=True)
+    # The source stylesheet ships only under its content-hashed name.
+    (out_dir / "static" / _CSS_SRC).unlink(missing_ok=True)
+    hashed = out_dir / css_path.lstrip("/")
+    hashed.parent.mkdir(parents=True, exist_ok=True)
+    hashed.write_text(css_body, encoding="utf-8")
     favicon = _STATIC_DIR / "favicon.svg"
     if favicon.is_file():
         shutil.copyfile(favicon, out_dir / "favicon.svg")

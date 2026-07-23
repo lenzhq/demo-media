@@ -27,3 +27,4 @@ firebase-debug.log
 .DS_Store
 .idea/
 .vscode/
+.gstack/

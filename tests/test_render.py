@@ -72,7 +72,15 @@ def test_404_at_root_and_section_hubs_exist(rendered):
 
 
 def test_static_copied_including_css(rendered):
-    assert (rendered / "static" / "css" / "site.css").is_file()
+    # Stylesheet ships ONLY under its content-hashed name (PSI: safe with the
+    # immutable /static/** cache header), and pages reference that exact name.
+    css_files = list((rendered / "static" / "css").glob("site.*.css"))
+    assert len(css_files) == 1
+    assert not (rendered / "static" / "css" / "site.css").exists()
+    home_html = (rendered / "index.html").read_text(encoding="utf-8")
+    assert f'href="/static/css/{css_files[0].name}"' in home_html
+    body = css_files[0].read_text(encoding="utf-8")
+    assert "/*" not in body  # minified: comments stripped
     assert (rendered / "favicon.svg").is_file()
 
 
