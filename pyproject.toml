@@ -1,0 +1,61 @@
+# IsThisBS? — build & tooling configuration.
+#
+# The site is generated from a checkout (`python build.py`), not from an
+# installed wheel, so the package metadata below exists mainly to make
+# `pip install -e ".[dev,search]"` set up a clean, importable dev environment.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "isthisbs"
+version = "0.1.0"
+description = "IsThisBS? — a public, MIT-licensed static fact-check media site built on the Lenz public API."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Lenz", email = "hello@lenz.io" }]
+keywords = ["fact-checking", "static-site", "lenz", "jinja2", "pagefind"]
+
+# Runtime dependencies for the static build.
+dependencies = [
+    "lenz-io>=2.3",      # the public Lenz API SDK — all reads are keyless
+    "jinja2",            # HTML template rendering
+    "pillow",            # OG-image (1200x630) card generation
+    "python-slugify",    # stable slug minting (the API exposes no slug)
+]
+
+[project.optional-dependencies]
+# Client-side search index. Kept optional so a plain build works without it;
+# the build skips search gracefully when the wheel is unavailable.
+search = ["pagefind[extended]"]
+# Local + CI developer tooling.
+dev = ["pytest", "ruff"]
+
+[project.urls]
+Homepage = "https://isthisbs.org"
+Repository = "https://github.com/lenzhq/isthisbs"
+"Powered by" = "https://lenz.io"
+
+[tool.setuptools]
+# Only the Python package ships; templates/ and static/ live in-repo and are
+# read from the source tree at build time (the site builds from a checkout).
+packages = ["isthisbs"]
+
+[tool.setuptools.package-data]
+# Included for completeness so an editable/source install still carries the
+# Jinja templates and CSS/JS assets alongside the package.
+isthisbs = ["templates/**", "static/**"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+# Strict but not annoying: pycodestyle errors/warnings, pyflakes, isort,
+# pyupgrade, flake8-bugbear, flake8-simplify.
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

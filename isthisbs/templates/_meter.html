@@ -1,0 +1,30 @@
+{#
+  The BS Meter — the signature component, article size (DESIGN.md §4).
+  A 5-stop horizontal track; the verdict's stop is filled (its `fill` color)
+  and scaled up. Below the track: the BS label (verdict `text` color) plus the
+  canonical verdict. The whole thing is one `role="img"` with a full text
+  equivalent; the decorative track is hidden from assistive tech.
+
+  The wrapper carries the verdict css class, which sets `--fill` / `--vtext`
+  in site.css — so the active stop and label pick up the right color without
+  per-stop classes.
+#}
+{% macro meter(check) %}
+{% set v = check.verdict %}
+<div class="meter {{ v.css }}" role="img"
+     aria-label="BS meter: {{ v.bs_label }}. Verdict: {{ v.key }}.">
+  <div class="meter__track" aria-hidden="true">
+    <span class="meter__end">NOT BS</span>
+    <ol class="meter__stops">
+      {% for stop in VERDICT_ORDER %}
+      <li class="meter__stop{{ ' is-active' if stop.rank == v.rank else '' }}"></li>
+      {% endfor %}
+    </ol>
+    <span class="meter__end">TOTAL BS</span>
+  </div>
+  <p class="meter__verdict" aria-hidden="true">
+    <span class="meter__label">{{ v.bs_label }}</span
+    ><span class="meter__canon"> — Verdict: {{ v.key }}</span>
+  </p>
+</div>
+{% endmacro %}

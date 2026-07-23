@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="IsThisBS">
+  <!-- Favicon = the @isthisbs mark: dark rounded square, white "BS", yellow "?". -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#171717"/>
+  <text x="32" y="42" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="30" letter-spacing="-1.5"><tspan fill="#FBF9F2">BS</tspan><tspan fill="#FFD23F">?</tspan></text>
+</svg>

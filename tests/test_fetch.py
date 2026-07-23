@@ -1,0 +1,298 @@
+"""Tests for the incremental fetch/cache layer, driven by a fake SDK client."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+# Real SDK exception types — imported (fetch.py already needs the SDK present).
+from lenz_io import LenzError, LenzRateLimitError
+
+from isthisbs import fetch
+from isthisbs.config import PAGE_SIZE
+
+# --------------------------------------------------------------------------- #
+# Fake SDK
+# --------------------------------------------------------------------------- #
+
+
+class _FakeItem:
+    def __init__(self, vid: str, modified_at: str) -> None:
+        self.verification_id = vid
+        self.modified_at = modified_at
+
+
+class _FakeList:
+    def __init__(self, items: list[_FakeItem], total: int) -> None:
+        self.items = items
+        self.total = total
+
+
+class _FakeModel:
+    def __init__(self, data: dict) -> None:
+        self._data = data
+
+    def model_dump(self, mode: str = "json") -> dict:
+        return dict(self._data)
+
+
+class _FakeRelated:
+    def __init__(self, items: list[_FakeModel]) -> None:
+        self.items = items
+
+
+class _FakeLibrary:
+    def __init__(self, client: FakeClient) -> None:
+        self._c = client
+
+    def list(self, page: int = 1, sort: str = "recent") -> _FakeList:
+        self._c.list_calls.append(page)
+        if self._c.list_error_on_page == page:
+            raise LenzError(message=f"list page {page} boom")
+        catalog = self._c.catalog
+        start = (page - 1) * PAGE_SIZE
+        chunk = catalog[start : start + PAGE_SIZE]
+        items = [_FakeItem(vid, mod) for vid, mod in chunk]
+        return _FakeList(items, total=len(catalog))
+
+
+class _FakeVerifications:
+    def __init__(self, client: FakeClient) -> None:
+        self._c = client
+
+    def get(self, vid: str) -> _FakeModel:
+        self._c.get_calls.append(vid)
+        if vid in self._c.rate_limit_ids:
+            # Only rate-limit the first attempt for an id, then succeed.
+            self._c.rate_limit_ids.discard(vid)
+            raise _rate_limit_error(0)
+        if vid in self._c.error_ids:
+            raise LenzError(message=f"detail {vid} boom")
+        return _FakeModel(self._c.detail.get(vid, {"verification_id": vid}))
+
+    def related(self, vid: str, limit: int = 5) -> _FakeRelated:
+        self._c.related_calls.append((vid, limit))
+        return _FakeRelated([_FakeModel({"verification_id": f"{vid}-r"})])
+
+
+class FakeClient:
+    def __init__(
+        self,
+        catalog: list[tuple[str, str]],
+        detail: dict | None = None,
+        *,
+        error_ids: set[str] | None = None,
+        rate_limit_ids: set[str] | None = None,
+        list_error_on_page: int | None = None,
+    ) -> None:
+        self.catalog = catalog
+        self.detail = detail or {}
+        self.error_ids = error_ids or set()
+        self.rate_limit_ids = rate_limit_ids or set()
+        self.list_error_on_page = list_error_on_page
+        self.get_calls: list[str] = []
+        self.related_calls: list[tuple[str, int]] = []
+        self.list_calls: list[int] = []
+        self.library = _FakeLibrary(self)
+        self.verifications = _FakeVerifications(self)
+
+
+def _rate_limit_error(retry_after: int) -> LenzRateLimitError:
+    try:
+        err = LenzRateLimitError("rate limited")
+    except TypeError:  # unknown constructor signature
+        err = LenzRateLimitError.__new__(LenzRateLimitError)
+    err.retry_after = retry_after
+    return err
+
+
+@pytest.fixture(autouse=True)
+def _no_sleep(monkeypatch):
+    """Never actually sleep during fetch tests."""
+    monkeypatch.setattr(fetch.time, "sleep", lambda *a, **k: None)
+
+
+def _detail_for(vid: str) -> dict:
+    return {
+        "verification_id": vid,
+        "claim": f"claim {vid}",
+        "verdict": "False",
+        "language": "en",
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Cache decisions
+# --------------------------------------------------------------------------- #
+
+
+def test_new_id_is_fetched_and_cached(tmp_path):
+    client = FakeClient(
+        catalog=[("A", "2026-07-01T00:00:00Z")],
+        detail={"A": _detail_for("A")},
+    )
+    stats = fetch.sync(client, tmp_path)
+    assert stats.new == 1
+    assert client.get_calls == ["A"]
+    cache_file = tmp_path / "claims" / "A.json"
+    assert cache_file.exists()
+    doc = json.loads(cache_file.read_text())
+    assert doc["detail"]["verification_id"] == "A"
+    assert "related" in doc and "fetched_at" in doc
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert manifest["A"] == "2026-07-01T00:00:00Z"
+
+
+def test_unchanged_id_skipped_zero_detail_calls(tmp_path, write_cache):
+    doc = {
+        "detail": _detail_for("A"),
+        "related": [],
+        "fetched_at": "2026-07-01T00:00:00+00:00",
+    }
+    doc["detail"]["modified_at"] = "2026-07-01T00:00:00Z"
+    write_cache(tmp_path, [doc])
+    client = FakeClient(catalog=[("A", "2026-07-01T00:00:00Z")])
+    stats = fetch.sync(client, tmp_path)
+    assert stats.unchanged == 1
+    assert stats.fetched == 0
+    assert client.get_calls == []  # the incremental win: no detail fetch
+
+
+def test_changed_modified_at_refetched(tmp_path, write_cache):
+    doc = {
+        "detail": _detail_for("A"),
+        "related": [],
+        "fetched_at": "2026-07-01T00:00:00+00:00",
+    }
+    doc["detail"]["modified_at"] = "2026-07-01T00:00:00Z"
+    write_cache(tmp_path, [doc])
+    client = FakeClient(
+        catalog=[("A", "2026-07-05T00:00:00Z")],  # moved
+        detail={"A": _detail_for("A")},
+    )
+    stats = fetch.sync(client, tmp_path)
+    assert stats.updated == 1
+    assert client.get_calls == ["A"]
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert manifest["A"] == "2026-07-05T00:00:00Z"
+
+
+def test_disappeared_id_dropped_on_full_walk(tmp_path, write_cache):
+    docs = [
+        {"detail": _detail_for(v), "related": [], "fetched_at": "x"} for v in ("A", "B")
+    ]
+    for d in docs:
+        d["detail"]["modified_at"] = "m"
+    write_cache(tmp_path, docs)
+    # Catalog now only has A — B has vanished.
+    client = FakeClient(catalog=[("A", "m")])
+    stats = fetch.sync(client, tmp_path, max_pages=None)
+    assert stats.dropped == 1
+    assert not (tmp_path / "claims" / "B.json").exists()
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert "B" not in manifest
+    assert "A" in manifest
+
+
+def test_disappeared_id_kept_when_max_pages_set(tmp_path, write_cache):
+    docs = [
+        {"detail": _detail_for(v), "related": [], "fetched_at": "x"} for v in ("A", "B")
+    ]
+    for d in docs:
+        d["detail"]["modified_at"] = "m"
+    write_cache(tmp_path, docs)
+    client = FakeClient(catalog=[("A", "m")])
+    stats = fetch.sync(client, tmp_path, max_pages=1)
+    # Partial walk must NOT mass-delete: B survives.
+    assert stats.dropped == 0
+    assert (tmp_path / "claims" / "B.json").exists()
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert "B" in manifest
+
+
+def test_per_claim_error_logged_counted_skipped(tmp_path, caplog):
+    client = FakeClient(
+        catalog=[("A", "m1"), ("B", "m2")],
+        detail={"A": _detail_for("A")},
+        error_ids={"B"},
+    )
+    with caplog.at_level("WARNING"):
+        stats = fetch.sync(client, tmp_path)
+    assert stats.errors == 1
+    assert stats.new == 1  # A succeeded
+    assert (tmp_path / "claims" / "A.json").exists()
+    assert not (tmp_path / "claims" / "B.json").exists()
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert "A" in manifest and "B" not in manifest
+    assert any("B" in rec.message for rec in caplog.records)
+
+
+def test_rate_limit_retried_once_then_succeeds(tmp_path):
+    client = FakeClient(
+        catalog=[("A", "m")],
+        detail={"A": _detail_for("A")},
+        rate_limit_ids={"A"},
+    )
+    stats = fetch.sync(client, tmp_path)
+    assert stats.new == 1
+    assert stats.errors == 0
+    assert client.get_calls == ["A", "A"]  # first attempt + retry
+
+
+def test_list_page_error_stops_walk_no_drop(tmp_path, write_cache):
+    doc = {"detail": _detail_for("A"), "related": [], "fetched_at": "x"}
+    doc["detail"]["modified_at"] = "m"
+    write_cache(tmp_path, [doc])
+    client = FakeClient(catalog=[("A", "m")], list_error_on_page=1)
+    stats = fetch.sync(client, tmp_path)
+    assert stats.errors == 1
+    # Documented intent: an incomplete walk must NOT drop anything; A survives.
+    assert stats.dropped == 0
+    assert (tmp_path / "claims" / "A.json").exists()
+
+
+def test_manifest_written_atomically_and_parses(tmp_path):
+    client = FakeClient(
+        catalog=[("A", "m")],
+        detail={"A": _detail_for("A")},
+    )
+    fetch.sync(client, tmp_path)
+    manifest_path = tmp_path / "manifest.json"
+    assert manifest_path.exists()
+    # No leftover temp file.
+    assert not (tmp_path / "manifest.json.tmp").exists()
+    assert isinstance(json.loads(manifest_path.read_text()), dict)
+
+
+def test_pagination_covers_full_catalog(tmp_path):
+    catalog = [(f"V{i:03d}", "m") for i in range(45)]  # 3 pages of 20
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    client = FakeClient(catalog=catalog, detail=detail)
+    stats = fetch.sync(client, tmp_path)
+    assert stats.new == 45
+    assert client.list_calls == [1, 2, 3]
+    files = list((tmp_path / "claims").glob("*.json"))
+    assert len(files) == 45
+
+
+# --------------------------------------------------------------------------- #
+# load_raw
+# --------------------------------------------------------------------------- #
+
+
+def test_load_raw_skips_corrupt_and_non_object(tmp_path):
+    claims = tmp_path / "claims"
+    claims.mkdir(parents=True)
+    (claims / "good.json").write_text(
+        json.dumps({"detail": {"verification_id": "good"}}), encoding="utf-8"
+    )
+    (claims / "corrupt.json").write_text("{not valid json", encoding="utf-8")
+    (claims / "list.json").write_text("[1, 2, 3]", encoding="utf-8")
+    docs = fetch.load_raw(tmp_path)
+    assert len(docs) == 1
+    assert docs[0]["detail"]["verification_id"] == "good"
+
+
+def test_load_raw_missing_dir_returns_empty(tmp_path):
+    assert fetch.load_raw(tmp_path / "nope") == []

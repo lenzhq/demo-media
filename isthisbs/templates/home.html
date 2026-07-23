@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_meter.html" import meter %}
+{#
+  Front page (DESIGN.md §6). The single <h1> is the lead check's headline; all
+  other band headings are <h2>. Order: lead + fresh rail → BS Files strip →
+  section blocks → Checks Out strip → entity cloud → about band.
+#}
+{% block content %}
+
+{% if lead %}
+<section class="home-top">
+  <article class="lead">
+    <p class="lead__meta">
+      <a class="lead__section" href="{{ lead.section.path }}">{{ lead.section.title|upper }}</a>
+      <span class="dot" aria-hidden="true">·</span>
+      <time datetime="{{ lead.created_at }}">{{ lead.created_at|datefmt }}</time>
+    </p>
+    <p class="kicker">The Claim</p>
+    <h1 class="lead__title claim-quote"><a href="{{ lead.path }}">{{ lead.claim }}</a></h1>
+    {{ meter(lead) }}
+    {% if lead.summary_paragraphs %}
+    <p class="lead__standfirst">{{ lead.summary_paragraphs[0] }}</p>
+    {% endif %}
+    <p><a class="readlink" href="{{ lead.path }}">Read the check →</a></p>
+  </article>
+
+  <aside class="rail" aria-labelledby="fresh-h">
+    <h2 class="band__head" id="fresh-h">Fresh Checks</h2>
+    <div class="rail__list">
+      {% for check in rail %}
+      {{ card(check, variant="row", heading="h3") }}
+      {% endfor %}
+    </div>
+    <p class="band__more"><a href="/latest/">All latest →</a></p>
+  </aside>
+</section>
+{% else %}
+<h1 class="lead__title">No checks yet</h1>
+<p>The desk is warming up. Check back once the first claims are in.</p>
+{% endif %}
+
+{% if bs_files %}
+<section class="band" aria-labelledby="bsfiles-h">
+  <div class="band__head-row">
+    <h2 class="band__head" id="bsfiles-h">The BS Files</h2>
+    <a class="band__more" href="/bs-files/">All BS Files →</a>
+  </div>
+  <div class="grid grid--4">
+    {% for check in bs_files %}
+    {{ card(check, heading="h3") }}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if section_blocks %}
+<div class="section-blocks">
+  {% for sb in section_blocks %}
+  <section class="section-block" aria-labelledby="sb-{{ sb.section.key }}">
+    <div class="band__head-row">
+      <h2 class="band__head" id="sb-{{ sb.section.key }}">
+        <a href="{{ sb.section.path }}">{{ sb.section.title }}</a>
+      </h2>
+      <a class="band__more" href="{{ sb.section.path }}">More →</a>
+    </div>
+    <div class="rail__list">
+      {% for check in sb.checks %}
+      {{ card(check, variant="row", heading="h3") }}
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if checks_out %}
+<section class="band" aria-labelledby="checksout-h">
+  <div class="band__head-row">
+    <h2 class="band__head" id="checksout-h">Checks Out</h2>
+    <a class="band__more" href="/checks-out/">All that checks out →</a>
+  </div>
+  <div class="grid grid--4">
+    {% for check in checks_out %}
+    {{ card(check, heading="h3") }}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if entity_cloud %}
+<section class="band cloud-band" aria-labelledby="cloud-h">
+  <h2 class="band__head" id="cloud-h">Frequently Checked</h2>
+  <p class="cloud">
+    {% for item in entity_cloud %}
+    <a class="cloud__item" href="{{ item.entity.path }}"
+       style="font-size: calc(0.85rem + {{ item.weight }} * 1.15rem)"
+       title="{{ item.count }} claims checked">{{ item.entity.name }}</a>
+    {% endfor %}
+  </p>
+</section>
+{% endif %}
+
+<section class="band about-band">
+  <p class="about-band__lead">
+    This entire site is a few hundred lines of Python on the public Lenz API —
+    every article is one claim, checked against independent sources.
+  </p>
+  <p class="about-band__cta">
+    <a class="readlink" href="/about/">How this site works →</a>
+    <a class="readlink" href="{{ SITE.github_repo }}" rel="noopener" target="_blank">Build your own ↗</a>
+  </p>
+</section>
+
+{% endblock %}

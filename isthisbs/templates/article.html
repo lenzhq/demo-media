@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_meter.html" import meter %}
+{#
+  The article — one verified claim (DESIGN.md §6, PROJECT_BRIEF IA).
+  Renders ONLY what a reader needs: the claim, the BS Meter, the short version
+  (executive_summary), caveats (warnings), a "panel divided" note when split,
+  the receipts (sources), related checks, and the Lenz attribution box.
+
+  NEVER rendered: debate_pro / debate_con, per-panelist assessments, raw scores
+  — those live on lenz.io and the attribution box links there for depth.
+
+  Pagefind indexes the <article> (data-pagefind-body); the verdict is exposed
+  as a filterable facet so /search/ can filter by verdict.
+#}
+{% block body_class %}article-page{% endblock %}
+
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+  <a href="{{ path }}">{{ name|upper }}</a>{% if not loop.last %}<span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<article class="article" data-pagefind-body data-pagefind-filter="verdict:{{ check.verdict_key }}">
+  <p class="article__kicker">
+    <a href="{{ check.section.path }}">{{ check.section.title|upper }}</a>
+    <span class="dot" aria-hidden="true">·</span>
+    <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
+  </p>
+
+  <p class="kicker">The Claim</p>
+  <h1 class="article__title claim-quote">{{ check.claim }}</h1>
+
+  <div class="article__verdict">
+    {{ meter(check) }}
+    <p class="article__byline">Verified by Lenz · <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time></p>
+  </div>
+
+  <section class="article__body">
+    <h2 class="block-head">The Short Version</h2>
+    {% if check.summary_paragraphs %}
+    {% for para in check.summary_paragraphs %}
+    <p>{{ para }}</p>
+    {% endfor %}
+    {% else %}
+    <p class="muted">No summary is available for this check.</p>
+    {% endif %}
+  </section>
+
+  {% if check.warnings %}
+  <section class="article__caveats">
+    <h2 class="block-head">Caveats</h2>
+    <ul class="caveats">
+      {% for warning in check.warnings %}
+      <li>{{ warning }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if check.is_split %}
+  <aside class="panel-divided" data-pagefind-ignore>
+    <p class="panel-divided__label">Panel Divided</p>
+    <p class="panel-divided__note">Lenz's model panel did not reach unanimous agreement on this one.</p>
+  </aside>
+  {% endif %}
+
+  {% if check.sources %}
+  <section class="article__receipts">
+    <h2 class="block-head">The Receipts</h2>
+    <ol class="receipts">
+      {% for source in check.sources %}
+      <li class="receipt">
+        <a class="receipt__title" href="{{ source.url }}" rel="noopener nofollow" target="_blank">{{ source.title }}</a>
+        <p class="receipt__meta">
+          {% if source.source_name %}{{ source.source_name }}{% endif %}
+          {% if source.source_name and source.date %}<span class="dot" aria-hidden="true">·</span>{% endif %}
+          {% if source.date %}<time datetime="{{ source.date }}">{{ source.date|datefmt }}</time>{% endif %}
+        </p>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+</article>
+
+{% if related %}
+<section class="more-checks" data-pagefind-ignore aria-labelledby="more-h">
+  <h2 class="block-head" id="more-h">More Checks</h2>
+  <div class="rail__list">
+    {% for rel in related %}
+    {{ card(rel, variant="row", heading="h3") }}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<aside class="attribution" data-pagefind-ignore>
+  <p class="attribution__body">
+    This check was produced by
+    <a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">Lenz</a>,
+    an independent fact-checking engine. IsThisBS presents the results.
+  </p>
+  <p><a class="readlink" href="{{ check.lenz_url }}" rel="noopener" target="_blank">Read the full analysis on Lenz ↗</a></p>
+</aside>
+{% endblock %}

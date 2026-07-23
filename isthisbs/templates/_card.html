@@ -1,0 +1,35 @@
+{#
+  Check card (DESIGN.md §5). Three variants:
+    ""     — default feed card: kicker, headline, pill, 2-line summary.
+    "row"  — compact list row (rails/feeds): kicker, single-line headline, pill.
+    "lead" — hero card: standfirst visible, big type, "Read the check →".
+
+  `heading` sets the headline element (h2 in top-level feeds, h3 when the card
+  sits under a section-block h2) to keep heading nesting correct.
+
+  `data-verdict` (canonical key) drives the client-side verdict filter and
+  Pagefind faceting; it is never color-only — the pill label carries the word.
+#}
+{% from "_pill.html" import pill %}
+
+{% macro card(check, variant="", heading="h3") %}
+<article class="check-card{% if variant %} check-card--{{ variant }}{% endif %}"
+         data-verdict="{{ check.verdict_key }}"
+         data-pagefind-filter="verdict:{{ check.verdict_key }}">
+  <p class="check-card__kicker">
+    <a class="check-card__section" href="{{ check.section.path }}">{{ check.section.title|upper }}</a>
+    <span class="dot" aria-hidden="true">·</span>
+    <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
+  </p>
+  <{{ heading }} class="check-card__title">
+    <a href="{{ check.path }}">{{ check.claim }}</a>
+  </{{ heading }}>
+  {{ pill(check) }}
+  {% if variant == "lead" and check.summary_paragraphs %}
+  <p class="check-card__standfirst">{{ check.summary_paragraphs[0] }}</p>
+  <p class="check-card__more"><a href="{{ check.path }}">Read the check →</a></p>
+  {% elif variant != "row" and check.summary_paragraphs %}
+  <p class="check-card__summary">{{ check.summary_paragraphs[0] }}</p>
+  {% endif %}
+</article>
+{% endmacro %}

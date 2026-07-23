@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_pagination.html" import pagination %}
+{% from "_filter_chips.html" import filter_chips %}
+{#
+  Section hub (DESIGN.md §6): breadcrumb → H1 → blurb → verdict filter chips →
+  feed (20/page) → pagination. The chips are progressive enhancement over the
+  `data-verdict` cards; with no JS the full feed stands unfiltered.
+#}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+    {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<header class="page-head">
+  <h1 class="page-title">{{ section.title }}</h1>
+  <p class="page-standfirst">{{ section.blurb }}</p>
+</header>
+
+{{ filter_chips() }}
+
+{% if checks %}
+<div class="feed" data-feed>
+  {% for check in checks %}
+  {{ card(check, heading="h2") }}
+  {% endfor %}
+</div>
+<p class="feed__empty" data-feed-empty hidden>No checks match that verdict.</p>
+{% else %}
+<p class="feed__empty">No checks in this section yet.</p>
+{% endif %}
+
+{{ pagination(page, total_pages, base_path) }}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/filter.js" defer></script>
+{% endblock %}

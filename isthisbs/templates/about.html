@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_pill.html" import pill_verdict %}
+{#
+  About (DESIGN.md §6): article-width prose. What this is / How the checks work /
+  What the meter means / Built on the Lenz API / Contact.
+#}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+    {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<article class="article prose">
+  <h1 class="article__title">About IsThisBS</h1>
+
+  <h2 class="block-head">What this is</h2>
+  <p>
+    IsThisBS is an automated fact-check publication. Every article is a single
+    claim, checked against independent sources, with the receipts to show for
+    it. There is no house opinion and no editorial spin: the site presents
+    verdicts produced by Lenz and links to the full analysis for each one.
+  </p>
+
+  <h2 class="block-head">How the checks work</h2>
+  <p>
+    Each claim is verified by
+    <a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">Lenz</a>, an
+    independent fact-checking engine. Several frontier AI models independently
+    research the claim against fresh, external sources and assess it on the
+    evidence. Where the models disagree, that disagreement is surfaced rather
+    than hidden — an article marked <em>panel divided</em> is one the panel did
+    not settle unanimously. IsThisBS adds no separate moderation layer; it is
+    the reading experience on top of those results.
+  </p>
+
+  <h2 class="block-head">What the meter means</h2>
+  <p>
+    The BS Meter is dual-labeled: a plain-English BS reading alongside the
+    canonical verdict. Color is never the only signal — the label is always
+    written out.
+  </p>
+  <ul class="meter-legend">
+    {% for verdict in VERDICT_ORDER %}
+    <li class="meter-legend__row">
+      {{ pill_verdict(verdict) }}
+      <span class="meter-legend__canon">Verdict: {{ verdict.key }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <h2 class="block-head">Built on the Lenz API</h2>
+  <p>
+    This whole site is a small, public, MIT-licensed Python program that reads
+    the public Lenz catalog through the <code>lenz-io</code> SDK and renders
+    static HTML — no server, no database of its own. It doubles as a reference
+    implementation for anyone building on the API.
+  </p>
+  <ul class="footer__links">
+    <li><a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">lenz.io ↗</a></li>
+    <li><a href="{{ SITE.lenz_api_docs }}" rel="noopener" target="_blank">API docs ↗</a></li>
+    <li><a href="{{ SITE.lenz_sdk_python }}" rel="noopener" target="_blank">Python SDK ↗</a></li>
+    <li><a href="{{ SITE.lenz_sdk_node }}" rel="noopener" target="_blank">Node SDK ↗</a></li>
+    <li><a href="{{ SITE.github_repo }}" rel="noopener" target="_blank">Source on GitHub ↗</a></li>
+  </ul>
+
+  <h2 class="block-head">Contact</h2>
+  <p>
+    Found a problem, or a check that looks off? Open an issue on
+    <a href="{{ SITE.github_repo }}/issues" rel="noopener" target="_blank">GitHub</a>.
+  </p>
+</article>
+{% endblock %}

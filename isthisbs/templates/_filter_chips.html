@@ -1,0 +1,21 @@
+{#
+  Verdict filter chips for section hubs (DESIGN.md §5). Progressive enhancement:
+  the container ships `hidden`; js/filter.js reveals it and wires the buttons to
+  toggle `hidden` on `[data-verdict]` cards. With no JS the chips never appear
+  and the full (unfiltered) feed stands — the correct no-JS default.
+
+  `data-verdict-filter` carries the canonical verdict key (matching each card's
+  `data-verdict`); "all" clears the filter. Buttons are real <button>s so they
+  are keyboard-operable; `aria-pressed` reflects the active facet.
+#}
+{% macro filter_chips() %}
+<div class="filter-chips" data-filter hidden>
+  <span class="filter-chips__label" aria-hidden="true">FILTER</span>
+  <button type="button" class="chip is-on" data-verdict-filter="all" aria-pressed="true">ALL</button>
+  {% for v in VERDICT_ORDER %}
+  <button type="button" class="chip {{ v.css }}" data-verdict-filter="{{ v.key }}" aria-pressed="false">
+    <span class="chip__sq" aria-hidden="true"></span>{{ v.bs_label }}
+  </button>
+  {% endfor %}
+</div>
+{% endmacro %}

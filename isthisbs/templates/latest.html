@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_pagination.html" import pagination %}
+{#
+  Latest (DESIGN.md §6): reverse-chron feed across all sections, paginated.
+#}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+    {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<header class="page-head">
+  <p class="kicker">{{ kicker }}</p>
+  <h1 class="page-title">{{ heading }}</h1>
+</header>
+
+{% if checks %}
+<div class="feed">
+  {% for check in checks %}
+  {{ card(check, heading="h2") }}
+  {% endfor %}
+</div>
+{% else %}
+<p class="feed__empty">No checks yet.</p>
+{% endif %}
+
+{{ pagination(page, total_pages, base_path) }}
+{% endblock %}

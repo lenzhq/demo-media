@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_card.html" import card %}
+{% from "_pagination.html" import pagination %}
+{#
+  Curated collection (DESIGN.md §6): BS Files / Checks Out. Computed locally
+  from verdicts — no extra API calls. One-line neutral description under the H1.
+#}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb">
+  {% for name, path in breadcrumb %}
+    {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  {% endfor %}
+</nav>
+
+<header class="page-head">
+  <p class="kicker">{{ kicker }}</p>
+  <h1 class="page-title">{{ heading }}</h1>
+  {% if standfirst %}<p class="page-standfirst">{{ standfirst }}</p>{% endif %}
+</header>
+
+{% if checks %}
+<div class="feed">
+  {% for check in checks %}
+  {{ card(check, heading="h2") }}
+  {% endfor %}
+</div>
+{% else %}
+<p class="feed__empty">Nothing here yet.</p>
+{% endif %}
+
+{{ pagination(page, total_pages, base_path) }}
+{% endblock %}

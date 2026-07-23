@@ -1,0 +1,25 @@
+{#
+  Feed pagination (DESIGN.md §5): `← NEWER · PAGE 2 OF 14 · OLDER →`.
+  Newest content is page 1, so NEWER moves toward lower page numbers.
+  Page 1 lives at `base_path`; later pages nest under `page/N/`.
+  Renders nothing for single-page feeds.
+#}
+{% macro _page_url(base_path, n) %}{{ base_path if n == 1 else base_path ~ "page/" ~ n ~ "/" }}{% endmacro %}
+
+{% macro pagination(page, total_pages, base_path) %}
+{% if total_pages > 1 %}
+<nav class="pager" aria-label="Pagination">
+  {% if page > 1 %}
+  <a class="pager__link" rel="prev" href="{{ _page_url(base_path, page - 1)|trim }}">← NEWER</a>
+  {% else %}
+  <span class="pager__link is-disabled" aria-disabled="true">← NEWER</span>
+  {% endif %}
+  <span class="pager__pos">PAGE {{ page }} OF {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a class="pager__link" rel="next" href="{{ _page_url(base_path, page + 1)|trim }}">OLDER →</a>
+  {% else %}
+  <span class="pager__link is-disabled" aria-disabled="true">OLDER →</span>
+  {% endif %}
+</nav>
+{% endif %}
+{% endmacro %}

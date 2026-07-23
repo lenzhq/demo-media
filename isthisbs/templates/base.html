@@ -1,0 +1,153 @@
+{#
+  Base document — the chrome every page shares (DESIGN.md §5–6).
+
+  Pages `{% extends "base.html" %}` and fill `{% block content %}` (and
+  optionally `{% block scripts %}`). Everything else — head meta, folio,
+  masthead + nav, footer, JSON-LD — is driven by the render context:
+
+    nav_active      section key | "home"/"latest"/"about"/"search" | None
+    canonical_path  site path of THIS page (e.g. "/health/")
+    page_title      full <title>
+    meta_description
+    og_type         "website" | "article"
+    og_image_path   site path of the OG card
+    jsonld_blocks   list[dict] embedded via the `jsonld` filter
+    check           (articles only) — drives article:* meta
+    breadcrumb      (most pages) — list[(name, path)] for the visible crumb
+
+  NO webfonts, NO third-party requests: the type system is system-font stacks
+  in site.css; the only network asset beyond first-party CSS/JS is Pagefind,
+  loaded on /search/ alone.
+#}
+<!DOCTYPE html>
+<html lang="{{ SITE.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  <meta name="description" content="{{ meta_description }}">
+  <link rel="canonical" href="{{ SITE.base_url }}{{ canonical_path }}">
+  <meta name="theme-color" content="#FFD23F">
+
+  {# --- Open Graph --- #}
+  <meta property="og:site_name" content="{{ SITE.short_name }}">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ meta_description }}">
+  <meta property="og:type" content="{{ og_type|default('website') }}">
+  <meta property="og:url" content="{{ SITE.base_url }}{{ canonical_path }}">
+  <meta property="og:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/site.png') }}">
+  {% if og_type == 'article' and check is defined %}
+  <meta property="article:published_time" content="{{ check.created_at }}">
+  {% if check.modified_at %}<meta property="article:modified_time" content="{{ check.modified_at }}">{% endif %}
+  <meta property="article:section" content="{{ check.section.title }}">
+  {% for entity in check.entities %}
+  <meta property="article:tag" content="{{ entity.name }}">
+  {% endfor %}
+  {% endif %}
+
+  {# --- Twitter --- #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="{{ SITE.twitter_handle }}">
+  <meta name="twitter:title" content="{{ page_title }}">
+  <meta name="twitter:description" content="{{ meta_description }}">
+  <meta name="twitter:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/site.png') }}">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="/static/css/site.css">
+
+  {% for ld in jsonld_blocks|default([]) %}
+  {{ ld|jsonld }}
+  {% endfor %}
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  {# ---- Folio line ---- #}
+  <div class="folio">
+    <div class="wrap folio__row">
+      <span class="folio__date">{{ build_date.strftime('%A') }}, {{ build_date|datefmt }}</span>
+      <span class="folio__tagline">{{ SITE.tagline }}</span>
+      <a class="folio__chip" href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">POWERED BY LENZ ↗</a>
+    </div>
+  </div>
+
+  {# ---- Masthead + nav ---- #}
+  {% set is_home = nav_active == 'home' %}
+  <header class="masthead{% if not is_home %} masthead--compact{% endif %}">
+    <div class="wrap masthead__inner">
+      {# Lockup: "IsThis" in the editorial serif + the @isthisbs X mark
+         replicated in pure HTML/CSS (dark chip, white "BS", yellow "?", heavy
+         sans) — crisp, themable, zero image bytes. #}
+      <a class="wordmark" href="/" aria-label="{{ SITE.name }} — home">
+        <span class="wordmark__ink">IsThis</span
+        ><span class="wordmark__mark" aria-hidden="true"><span class="wordmark__bs">BS</span><span class="wordmark__q">?</span></span>
+      </a>
+      <nav class="nav" aria-label="Sections">
+        <ul class="nav__list">
+          {% for key, section in SECTIONS.items() %}
+          <li><a href="{{ section.path }}"{% if nav_active == key %} aria-current="page"{% endif %}>{{ section.title|upper }}</a></li>
+          {% endfor %}
+          <li class="nav__sep" aria-hidden="true"></li>
+          <li><a href="/latest/"{% if nav_active == 'latest' %} aria-current="page"{% endif %}>LATEST</a></li>
+          <li><a href="/about/"{% if nav_active == 'about' %} aria-current="page"{% endif %}>ABOUT</a></li>
+          <li><a class="nav__search" href="/search/"{% if nav_active == 'search' %} aria-current="page"{% endif %}>
+            <span class="nav__search-icon" aria-hidden="true">⌕</span>SEARCH</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ---- Footer: full Lenz disclosure + developer links + MIT ---- #}
+  <footer class="footer">
+    <div class="wrap footer__cols">
+      <div class="footer__col">
+        <h2 class="footer__head">Sections</h2>
+        <ul>
+          {% for key, section in SECTIONS.items() %}
+          <li><a href="{{ section.path }}">{{ section.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h2 class="footer__head">Site</h2>
+        <ul>
+          <li><a href="/latest/">Latest</a></li>
+          <li><a href="/bs-files/">The BS Files</a></li>
+          <li><a href="/checks-out/">Checks Out</a></li>
+          <li><a href="/about/">About</a></li>
+          <li><a href="/search/">Search</a></li>
+          <li><a href="/feed.xml">RSS</a></li>
+        </ul>
+      </div>
+      <div class="footer__col footer__col--wide">
+        <h2 class="footer__head">Built on Lenz</h2>
+        <p class="footer__disclosure">
+          Every verdict on this site is produced by
+          <a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">Lenz</a>,
+          an independent fact-checking engine that checks each claim against
+          fresh, independent sources. IsThisBS is an editorial layer that
+          presents those results — it does not itself adjudicate claims.
+        </p>
+        <ul class="footer__links">
+          <li><a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">lenz.io ↗</a></li>
+          <li><a href="{{ SITE.lenz_api_docs }}" rel="noopener" target="_blank">API docs ↗</a></li>
+          <li><a href="{{ SITE.lenz_sdk_python }}" rel="noopener" target="_blank">Python SDK ↗</a></li>
+          <li><a href="{{ SITE.lenz_sdk_node }}" rel="noopener" target="_blank">Node SDK ↗</a></li>
+          <li><a href="{{ SITE.github_repo }}" rel="noopener" target="_blank">GitHub ↗</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap footer__legal">
+      © {{ build_date.year }} {{ SITE.short_name }} · MIT · Every verdict by Lenz · Made with the Lenz API
+    </div>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

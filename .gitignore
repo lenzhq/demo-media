@@ -1,0 +1,29 @@
+# Build output
+dist/
+
+# Incremental fetch cache
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Pagefind
+pagefind/
+
+# Firebase Hosting CLI
+.firebase/
+firebase-debug.log
+
+# Local env (keyless by design — nothing should live here, but never commit it)
+.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

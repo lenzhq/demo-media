@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{#
+  404 (DESIGN.md §6). The one place a little wit is allowed — in the interface,
+  never in a verdict. Centered, huge numerals, mono recovery links.
+#}
+{% block body_class %}notfound-page{% endblock %}
+
+{% block content %}
+<section class="notfound">
+  <p class="notfound__code">404</p>
+  <h1 class="notfound__line">This page is BS — it doesn't exist.</h1>
+  <nav class="notfound__links" aria-label="Recover">
+    <a href="/">HOME</a>
+    <span class="dot" aria-hidden="true">·</span>
+    <a href="/latest/">LATEST</a>
+    <span class="dot" aria-hidden="true">·</span>
+    <a href="/search/">SEARCH</a>
+  </nav>
+</section>
+{% endblock %}

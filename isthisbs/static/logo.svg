@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="IsThisBS">
+  <!-- Shareable brand mark = the @isthisbs avatar replicated: dark rounded
+       square, heavy white "BS", caution-yellow "?" (system sans). -->
+  <rect x="0" y="0" width="96" height="96" rx="20" fill="#171717"/>
+  <text x="48" y="62" text-anchor="middle" font-family="-apple-system, 'Helvetica Neue', 'Segoe UI', Arial, sans-serif" font-weight="800" font-size="44" letter-spacing="-2"><tspan fill="#FBF9F2">BS</tspan><tspan fill="#FFD23F">?</tspan></text>
+</svg>

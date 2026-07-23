@@ -1,0 +1,16 @@
+{#
+  BS pill — the card-size verdict badge (DESIGN.md §4).
+  A verdict-colored square + the BS label in mono, in the verdict's `text`
+  color. Color is never the sole carrier: the label text is always present,
+  and the canonical API verdict rides along in `title` for hover/AT.
+#}
+{% macro pill_verdict(verdict) %}
+<span class="bs-pill {{ verdict.css }}" title="Verdict: {{ verdict.key }}">
+  <span class="bs-pill__sq" aria-hidden="true"></span>
+  <span class="bs-pill__label">{{ verdict.bs_label }}</span>
+</span>
+{% endmacro %}
+
+{% macro pill(check) %}
+{{ pill_verdict(check.verdict) }}
+{% endmacro %}

@@ -1,0 +1,91 @@
+# Scheduled keyless build + deploy to Firebase Hosting.
+#
+# The build reads the public Lenz catalog with NO api key. Deploy auth to GCP
+# is Workload Identity Federation (short-lived OIDC token, no JSON key, no
+# stored secret). Deploy steps are guarded on `vars.GCP_PROJECT` so the whole
+# workflow stays green as a build-only job until GCP is provisioned.
+name: Build & Deploy
+
+on:
+  # Daily rebuild at an off-peak minute (06:17 UTC).
+  schedule:
+    - cron: "17 6 * * *"
+  # Manual trigger from the Actions tab.
+  workflow_dispatch:
+  # Ship on merges to main.
+  push:
+    branches: [main]
+
+# Never overlap deploys; a newer run supersedes an in-flight one.
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    name: Build (keyless) & deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # checkout
+      id-token: write     # mint the OIDC token for WIF
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # Persist the incremental fetch cache across runs so each build only
+      # fetches new/changed claims. restore-keys makes every run reuse the
+      # latest available cache even when the primary key misses.
+      - name: Restore incremental cache
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: isthisbs-cache-${{ github.run_id }}
+          restore-keys: |
+            isthisbs-cache-
+
+      - name: Install (with search extra for Pagefind)
+        run: pip install -e ".[search]"
+
+      - name: Build site (keyless — no API key anywhere)
+        run: python build.py
+
+      - name: Upload dist artifact (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 3
+
+      # --- Deploy (only once GCP_PROJECT is configured) -------------------- #
+
+      - name: Authenticate to GCP via Workload Identity Federation
+        if: vars.GCP_PROJECT != ''
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Node 20
+        if: vars.GCP_PROJECT != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # firebase-tools picks up Application Default Credentials written by the
+      # auth step (GOOGLE_APPLICATION_CREDENTIALS is exported into the env).
+      - name: Deploy to Firebase Hosting
+        if: vars.GCP_PROJECT != ''
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: >-
+          npx firebase-tools@13 deploy
+          --only hosting
+          --project ${{ vars.GCP_PROJECT }}
+          --non-interactive

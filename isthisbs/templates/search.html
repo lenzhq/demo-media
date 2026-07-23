@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{#
+  Search (DESIGN.md §6). Pagefind is a fully client-side, first-party index
+  (generated into /pagefind/ at build time) — the ONLY page that loads JS/CSS
+  beyond the shared bundle, and it is same-origin (no third-party request).
+  Its CSS variables are mapped to our design tokens in site.css.
+#}
+{% block content %}
+<header class="page-head">
+  <h1 class="page-title">Search</h1>
+  <p class="page-standfirst">Search every claim the desk has checked — filter by verdict.</p>
+</header>
+
+<link href="/pagefind/pagefind-ui.css" rel="stylesheet">
+<div id="search" class="pf-search"></div>
+<noscript>
+  <p class="feed__empty">
+    Search needs JavaScript. Without it, browse
+    <a href="/latest/">Latest</a>, the <a href="/bs-files/">BS Files</a>,
+    or any <a href="/about/">section</a> instead.
+  </p>
+</noscript>
+{% endblock %}
+
+{% block scripts %}
+<script src="/pagefind/pagefind-ui.js" defer></script>
+<script>
+  window.addEventListener("DOMContentLoaded", function () {
+    if (window.PagefindUI) {
+      new window.PagefindUI({
+        element: "#search",
+        showSubResults: true,
+        showImages: false,
+        showFilters: true,
+        resetStyles: false,
+      });
+    }
+  });
+</script>
+{% endblock %}
