@@ -566,3 +566,8 @@ main .footer__links { margin-bottom: var(--sp-8); }
 }
 .pf-search .pagefind-ui__message,
 .pf-search .pagefind-ui__filter-panel { color: var(--ink); }
+
+/* The [hidden] attribute must ALWAYS win — authored display values (flex on
+   cards) otherwise override the UA's [hidden]{display:none} and make
+   attribute-based toggling (the verdict filter) a silent no-op. */
+[hidden] { display: none !important; }
