@@ -40,8 +40,11 @@ make build
 
 echo "==> Deploying to Firebase Hosting (project: ${GCP_PROJECT})"
 # The functions bundle must be self-contained: sync the package in.
-rm -rf functions/isthisbs
+rm -rf functions/isthisbs functions/venv
 cp -R isthisbs functions/isthisbs
+# firebase-tools discovers Python functions through functions/venv.
+python3 -m venv functions/venv
+functions/venv/bin/pip install -q -r functions/requirements.txt
 find functions/isthisbs -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 fb deploy \
   --only hosting \
