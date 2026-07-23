@@ -579,7 +579,7 @@ main .footer__links { margin-bottom: var(--sp-8); }
 
 /* Hover-highlight breathing room: the yellow block should not clip at the
    first/last letter. Padding + negative margin = zero layout shift. */
-.readlink, .band__more, .cloud__item, .crumbs a, .band__head a,
+.readlink, .band__more a, .band__more, .cloud__item, .crumbs a, .band__head a,
 .article__kicker a, .check-card__section {
   padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
 }
