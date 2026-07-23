@@ -90,12 +90,14 @@ def _make_client():
 def _run_pagefind(out_dir: Path) -> bool:
     """Index ``out_dir`` with Pagefind for client-side search.
 
-    Tries the pip wheel first (``python -m pagefind``), then the npm runner
-    (``npx pagefind``). Search is a progressive enhancement — if neither is
-    available we warn and return ``False`` so the build still succeeds; the
-    site just ships without its search index.
+    Tries a ``pagefind`` binary on PATH first (fastest, no wrapper), then the
+    pip wheel (``python -m pagefind``), then the npm runner (``npx pagefind``).
+    Search is a progressive enhancement — if none are available we warn and
+    return ``False`` so the build still succeeds; the site just ships without
+    its search index.
     """
     attempts = [
+        ["pagefind", "--site", str(out_dir)],
         [sys.executable, "-m", "pagefind", "--site", str(out_dir)],
         ["npx", "-y", "pagefind", "--site", str(out_dir)],
     ]
@@ -109,7 +111,7 @@ def _run_pagefind(out_dir: Path) -> bool:
             logger.info("Pagefind indexed %s via %r", out_dir, cmd[0])
             return True
     logger.warning(
-        "Pagefind unavailable (tried `python -m pagefind` and `npx pagefind`). "
+        "Pagefind unavailable (tried `pagefind`, `python -m pagefind`, `npx`). "
         "Search will be disabled; the rest of the site is unaffected. "
         "Install with `pip install 'pagefind[extended]'` to enable it."
     )
