@@ -3,16 +3,16 @@
 From the 2026-07-23 CEO review of `PROJECT_BRIEF.md` (mode: SELECTIVE EXPANSION;
 accepted: E1 editorial floor, E4 PR preview channels):
 
-- ~~E2 — analytics~~ **RESOLVED 2026-07-23: GA4 added** (build-time
-  `GA_MEASUREMENT_ID` variable, non-hardcoded; previews don't track). Remaining
-  launch step: create the GA4 property and set the repo variable.
+- ~~E2 — analytics~~ **DONE**: GA4 wired (build-time `GA_MEASUREMENT_ID`
+  repo variable, set 2026-07-23 to the live property; non-hardcoded; previews
+  and local builds don't track).
 - **E3 — `/build-this/` developer page.** On-site walkthrough of how the site
   is built on the Lenz Python SDK (the README's content, surfaced where
   visitors are). The README covers this for v1.
 - **E5 — Date archives / weekly digest email.** RSS covers freshness for v1.
 - **Launch checklist (Pavel/Vicky, outside this repo):** link from
   lenz.io/developers; `@isthisbs` bot bio + reply links; Show HN post; domain
-  DNS → Firebase (isthisbs.org); create GA4 property + set `GA_MEASUREMENT_ID`.
+  DNS → Firebase (isthisbs.org).
 - **X-bot link switch (Lenz repo, one-liner):** point the @isthisbs reply URL
   at `https://isthisbs.org/c/<verification_id>` (was lenz.io/c/). The /c/
   short-link system (static stubs + claimlive function fallback) serves the
