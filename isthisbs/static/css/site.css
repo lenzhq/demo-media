@@ -492,10 +492,18 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* ---- Reduced motion ---------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
-.attribution__cta--verify { margin-left: var(--sp-4); }
+/* Both attribution CTAs speak the readlink voice (mono, uppercase, meta
+   size) so their ↗ arrows render at the same size, and both carry the
+   hover-highlight breathing room (padding + negative margin, zero shift). */
+.attribution__cta {
+  font-family: var(--font-mono); font-size: var(--fs-meta);
+  text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
+  padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
+}
+.attribution__cta--verify { margin-left: calc(var(--sp-4) - 6px); }
 @media (max-width: 560px) {
   .attribution__cta, .attribution__cta--verify {
-    display: block; margin-left: 0; margin-top: var(--sp-3); text-align: left;
+    display: block; margin: var(--sp-3) -6px -2px; text-align: left;
   }
 }
 
