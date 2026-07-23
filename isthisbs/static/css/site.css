@@ -147,7 +147,14 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 }
 
 /* ---- Masthead + wordmark + nav ----------------------------------------- */
-.masthead { border-bottom: 3px solid var(--ink); }
+/* Home's thick ink rule lives on .home-navbar (the sticky nav sibling), not
+   the masthead — the rule must ride with the nav when it sticks. */
+.masthead--compact { border-bottom: 3px solid var(--ink); }
+.home-navbar {
+  position: sticky; top: 0; z-index: 40;
+  background: var(--paper); border-bottom: 3px solid var(--ink);
+}
+.home-navbar .nav { margin-top: 0; }
 .masthead__inner { padding: var(--sp-6) var(--gutter); text-align: center; }
 
 /* Lockup: serif "IsThis" + the @isthisbs X mark replicated in CSS.
