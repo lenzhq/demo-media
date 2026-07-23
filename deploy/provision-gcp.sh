@@ -115,7 +115,7 @@ echo "[5/8] Granting deploy roles to the service account..."
 # Functions gen2 rides Cloud Run + Cloud Build + Artifact Registry).
 for _role in \
     roles/firebasehosting.admin \
-    roles/cloudfunctions.developer \
+    roles/cloudfunctions.admin \
     roles/run.admin \
     roles/cloudbuild.builds.editor \
     roles/artifactregistry.writer \
