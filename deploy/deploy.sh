@@ -11,6 +11,11 @@
 
 set -euo pipefail
 
+# Prefer an installed firebase CLI; fall back to npx (which needs npm network).
+fb() {
+  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else fb "$@"; fi
+}
+
 GCP_PROJECT="${GCP_PROJECT:-isthisbs-prod}"
 
 echo "==> Preflight checks"
@@ -38,7 +43,7 @@ echo "==> Deploying to Firebase Hosting (project: ${GCP_PROJECT})"
 rm -rf functions/isthisbs
 cp -R isthisbs functions/isthisbs
 find functions/isthisbs -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
-npx --yes firebase-tools@13 deploy \
+fb deploy \
   --only hosting \
   --project "${GCP_PROJECT}" \
   --non-interactive

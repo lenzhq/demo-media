@@ -21,6 +21,11 @@
 
 set -euo pipefail
 
+# Prefer an installed firebase CLI; fall back to npx (which needs npm network).
+fb() {
+  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else fb "$@"; fi
+}
+
 # --------------------------------------------------------------------------- #
 # Parameters (override via env; sensible defaults for this project)
 # --------------------------------------------------------------------------- #
@@ -78,14 +83,14 @@ gcloud services enable \
 #    if Firebase is already enabled; site create is guarded by a list check.
 # --------------------------------------------------------------------------- #
 echo "[3/8] Adding Firebase to the project..."
-npx --yes firebase-tools@13 projects:addfirebase "${GCP_PROJECT}" || true
+fb projects:addfirebase "${GCP_PROJECT}" || true
 
 echo "[3/8] Ensuring a default Hosting site exists..."
-if npx --yes firebase-tools@13 hosting:sites:list --project "${GCP_PROJECT}" 2>/dev/null \
+if fb hosting:sites:list --project "${GCP_PROJECT}" 2>/dev/null \
     | grep -q "${GCP_PROJECT}"; then
   echo "       Hosting site already present — skipping."
 else
-  npx --yes firebase-tools@13 hosting:sites:create "${GCP_PROJECT}" \
+  fb hosting:sites:create "${GCP_PROJECT}" \
     --project "${GCP_PROJECT}" || true
 fi
 
