@@ -94,8 +94,9 @@ for r in related.items:
     print("related:", r.claim)
 ```
 
-> Note: `related` currently requires an API key — the build treats it as
-> best-effort and falls back to local entity overlap for "More Fact Checks".
+> Note: `related` is fetched best-effort — if it's unavailable the build
+> falls back to local entity overlap for "More Fact Checks" and backfills
+> on a later sync.
 
 
 That's the entire data layer. See [`isthisbs/fetch.py`](isthisbs/fetch.py) for

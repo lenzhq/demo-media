@@ -20,10 +20,10 @@ accepted: E1 editorial floor, E4 PR preview channels):
   Keep the bare-URL/no-UTM attribution decision.
 - ~~Firebase Blaze plan~~ DONE 2026-07-23 (billing linked at provisioning;
   claimlive function deployed and verified live).
-- **Lenz-side API extension (Lenz repo, separate PR):** make
-  `GET /verifications/{id}/related` keyless public-read (list + detail already
-  are; verified 2026-07-23). Until then the site uses entity-overlap fallback
-  for MORE CHECKS. Second candidate: `modified_since` incremental catalog feed.
+- ~~Keyless `related` extension~~ **SHIPPED as lenzhq/Lenz#114** (pending
+  review + Lenz deploy). The build's backfill pass auto-fills cached claims'
+  related lists on the first sync after it deploys. Remaining candidate:
+  `modified_since` incremental catalog feed.
 - **Future interactivity (votes/comments/challenges):** Firestore + anonymous
   auth + lazy JS islands; nightly build bakes aggregates back into static HTML.
   See PROJECT_BRIEF.md → "Future: interactivity layer".

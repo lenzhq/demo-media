@@ -196,9 +196,49 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
                 _drop(claims_dir, manifest, vid)
                 stats.dropped += 1
 
+    # Related backfill (full walks only): unchanged claims never refetch, so
+    # docs cached while the related endpoint still required a key would keep
+    # ``related: []`` forever. One cheap probe per sync; while the endpoint
+    # is auth-walled this is a single failed call, and the first sync after
+    # it goes keyless fills every empty list.
+    if max_pages is None:
+        _backfill_related(client, claims_dir)
+
     _write_manifest_atomic(manifest_path, manifest)
     logger.info("%s", stats)
     return stats
+
+
+def _backfill_related(client: Any, claims_dir: Path) -> None:
+    empty: list[Path] = []
+    for path in claims_dir.glob("*.json"):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if doc.get("related") == []:
+            empty.append(path)
+    if not empty:
+        return
+
+    filled = 0
+    for i, path in enumerate(empty):
+        vid = path.stem
+        try:
+            related = client.verifications.related(vid, limit=RELATED_LIMIT)
+        except LenzError as exc:
+            if i == 0:
+                # Probe failed — endpoint (still) needs a key; try next sync.
+                logger.info("Related backfill unavailable (%s) — skipping", exc)
+                return
+            continue  # per-claim miss mid-backfill: skip just this one
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        doc["related"] = [item.model_dump(mode="json") for item in related.items]
+        if doc["related"]:
+            filled += 1
+        path.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
+        time.sleep(FETCH_DELAY)
+    logger.info("Related backfill: %d of %d empty lists filled", filled, len(empty))
 
 
 def load_raw(cache_dir: Path) -> list[dict[str, Any]]:
@@ -267,10 +307,11 @@ def _fetch_doc(client: Any, vid: str) -> dict[str, Any]:
     """Fetch the per-claim resources and assemble the cache document.
 
     Detail carries ``sources[]`` (absent from list items) and is required.
-    Related is a **best-effort enhancement**: in production the related
-    endpoint requires an API key while detail is keyless, so on any SDK error
-    we store ``related: []`` and keep the claim — the site renders its
-    "MORE CHECKS" from an entity-overlap fallback instead. Both Pydantic
+    Related is a **best-effort enhancement**: on any SDK error we store
+    ``related: []`` and keep the claim — the site renders "More Fact Checks"
+    from an entity-overlap fallback until the backfill pass fills the list.
+    (The endpoint historically required an API key; it is keyless since
+    lenzhq/Lenz#114.) Both Pydantic
     models are serialized with ``model_dump(mode="json")``.
     """
     detail = client.verifications.get(vid)

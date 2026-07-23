@@ -73,6 +73,8 @@ class _FakeVerifications:
 
     def related(self, vid: str, limit: int = 5) -> _FakeRelated:
         self._c.related_calls.append((vid, limit))
+        if vid in self._c.error_ids:
+            raise LenzError(message=f"related {vid} requires a key")
         return _FakeRelated([_FakeModel({"verification_id": f"{vid}-r"})])
 
 
@@ -326,3 +328,44 @@ def test_small_drop_still_works(tmp_path):
     stats = fetch.sync(FakeClient(catalog=smaller, detail=detail), tmp_path)
     assert stats.dropped == 5
     assert len(list((tmp_path / "claims").glob("*.json"))) == 25
+
+
+def test_related_backfill_fills_empty_lists(tmp_path):
+    """Once the related endpoint is reachable, cached docs with empty
+    related lists get filled on the next full sync (unchanged claims
+    never refetch, so without this they'd stay empty forever)."""
+    catalog = [(f"B{i:04d}", "m") for i in range(3)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    client = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client, tmp_path)  # populates cache (fake related non-empty)
+
+    # Simulate the keyless-era gap: blank out the related lists.
+    for f in (tmp_path / "claims").glob("*.json"):
+        doc = json.loads(f.read_text())
+        doc["related"] = []
+        f.write_text(json.dumps(doc))
+
+    client2 = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client2, tmp_path)  # unchanged walk + backfill pass
+    for f in (tmp_path / "claims").glob("*.json"):
+        assert json.loads(f.read_text())["related"], f"{f.name} not backfilled"
+
+
+def test_related_backfill_skips_when_unavailable(tmp_path):
+    """While the endpoint still needs a key, ONE probe fails and the pass
+    bows out — no per-claim hammering."""
+    catalog = [(f"C{i:04d}", "m") for i in range(5)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
+    for f in (tmp_path / "claims").glob("*.json"):
+        doc = json.loads(f.read_text())
+        doc["related"] = []
+        f.write_text(json.dumps(doc))
+
+    client = FakeClient(
+        catalog=catalog, detail=detail, error_ids={vid for vid, _ in catalog}
+    )
+    calls_before = len(client.related_calls)
+    fetch.sync(client, tmp_path)
+    # probe = at most one related call beyond the (zero) refetches
+    assert len(client.related_calls) - calls_before <= 1
