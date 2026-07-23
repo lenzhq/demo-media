@@ -17,7 +17,7 @@
       <time datetime="{{ lead.created_at }}">{{ lead.created_at|datefmt }}</time>
     </p>
     <p class="kicker">The Claim</p>
-    <h1 class="lead__title claim-quote{% if lead.claim|length > 140 %} claim-quote--long{% endif %}"><a href="{{ lead.path }}">{{ lead.claim }}</a></h1>
+    <h1 class="lead__title claim-quote{{ claim_size_class(lead.claim) }}"><a href="{{ lead.path }}">{{ lead.claim }}</a></h1>
     {{ meter(lead) }}
     {% if lead.summary_paragraphs %}
     <p class="lead__standfirst">{{ lead.summary_paragraphs[0] }}</p>

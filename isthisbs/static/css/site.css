@@ -390,7 +390,11 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .article__kicker { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--ink-60); margin: 0 0 var(--sp-4); }
 .article__kicker a { text-decoration: none; }
-.claim-quote--long { font-size: clamp(1.625rem, 3.8vw, 2.375rem) !important; }
+.claim-quote--medium { font-size: clamp(1.9rem, 4.2vw, 2.5rem) !important; }
+.claim-quote--long { font-size: clamp(1.625rem, 3.4vw, 2.125rem) !important; }
+/* Fold economics: tighter article-header rhythm so meter + answer surface. */
+.article__title { margin-top: 8px; margin-bottom: 20px; }
+.article__verdict { padding-top: 16px; padding-bottom: 16px; margin-bottom: 20px; }
 .article__title { font-size: var(--fs-hero); font-weight: 800; letter-spacing: -0.015em;
   line-height: 1.08; margin: 0 0 var(--sp-6); }
 .article__verdict { border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);

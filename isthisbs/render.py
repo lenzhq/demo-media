@@ -134,6 +134,23 @@ def _build_env() -> Environment:
     env.globals["VERDICT_ORDER"] = VERDICT_ORDER
     env.globals["SOURCES_SHOWN_MAX"] = SOURCES_SHOWN_MAX
     env.globals["build_date"] = datetime.now(UTC).date()
+
+    def claim_size_class(claim: str) -> str:
+        """Graduated hero sizing — fold economics beat spectacle.
+
+        Short claims earn the full display size; anything longer steps down
+        so the verdict meter and the first answer paragraph stay above the
+        fold on ordinary laptop viewports (measured: a 136-char claim at
+        56px pushed the meter to 710px and the answer to 908px).
+        """
+        n = len(claim or "")
+        if n > 120:
+            return " claim-quote--long"
+        if n > 60:
+            return " claim-quote--medium"
+        return ""
+
+    env.globals["claim_size_class"] = claim_size_class
     # GA4 is opt-in at build time: set GA_MEASUREMENT_ID (e.g. a GitHub Actions
     # variable) and the gtag snippet ships; unset → zero analytics markup.
     # Never hardcoded — the public repo stays configuration-free.

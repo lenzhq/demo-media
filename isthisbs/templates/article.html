@@ -33,7 +33,7 @@
   </p>
 
   <p class="kicker" data-pagefind-ignore>The Claim</p>
-  <h1 class="article__title claim-quote{% if check.claim|length > 140 %} claim-quote--long{% endif %}">{{ check.claim }}</h1>
+  <h1 class="article__title claim-quote{{ claim_size_class(check.claim) }}">{{ check.claim }}</h1>
 
   <div class="article__verdict" data-pagefind-ignore>
     {{ meter(check) }}
