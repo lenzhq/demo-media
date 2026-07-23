@@ -107,6 +107,7 @@
           <li><a href="/about/"{% if nav_active == 'about' %} aria-current="page"{% endif %}>ABOUT</a></li>
           <li><a class="nav__search" href="/search/"{% if nav_active == 'search' %} aria-current="page"{% endif %}>
             <span class="nav__search-icon" aria-hidden="true">⌕</span>SEARCH</a></li>
+          <li><a class="nav__verify" href="{{ SITE.lenz_verify }}" rel="noopener">VERIFY A CLAIM ↗</a></li>
         </ul>
       </nav>
     </div>
@@ -148,6 +149,7 @@
           presents those results — it does not itself adjudicate claims.
         </p>
         <ul class="footer__links">
+          <li><a href="{{ SITE.lenz_verify }}" rel="noopener">Verify any claim ↗</a></li>
           <li><a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">lenz.io ↗</a></li>
           <li><a href="{{ SITE.lenz_api_docs }}" rel="noopener" target="_blank">API docs ↗</a></li>
           <li><a href="{{ SITE.lenz_sdk_python }}" rel="noopener" target="_blank">Python SDK ↗</a></li>

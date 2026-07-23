@@ -32,12 +32,13 @@ from xml.etree import ElementTree as ET
 from .config import (
     FEED_SIZE,
     NEWS_SITEMAP_HOURS,
+    PAGE_SIZE,
     SECTION_FEED_SIZE,
     SECTIONS,
     SITE,
     SOURCES_SHOWN_MAX,
 )
-from .content import Check, group_by_entity, group_by_section
+from .content import Check, collections, group_by_entity, group_by_section
 
 logger = logging.getLogger(__name__)
 
@@ -335,14 +336,30 @@ def _write_sitemap_articles(checks: list[Check], out_dir: Path) -> None:
     _write_tree(root, out_dir / "sitemap-articles.xml")
 
 
+def _paged(base: str, count: int, page_size: int) -> list[str]:
+    """A feed's full path set: page 1 at ``base``, then ``base``page/N/."""
+    pages = max(1, -(-count // page_size)) if count else 1
+    return [base] + [f"{base}page/{n}/" for n in range(2, pages + 1)]
+
+
 def _write_sitemap_pages(checks: list[Check], out_dir: Path, today: str) -> None:
+    """Every non-article page — INCLUDING /page/N/ variants, mirroring what
+    render.py actually emits (a sitemap that hides half the site is worse
+    than none)."""
     ET.register_namespace("", _SM_NS)
     root = ET.Element(f"{{{_SM_NS}}}urlset")
+    sections = group_by_section(checks)
+    colls = collections(checks)
     paths = ["/"]
-    paths += [section.path for section in SECTIONS.values()]  # hub page 1 each
-    paths += ["/latest/", "/bs-files/", "/checks-out/", "/search/", "/about/"]
+    for section in SECTIONS.values():
+        paths += _paged(section.path, len(sections.get(section.key, [])), PAGE_SIZE)
+    paths += _paged("/latest/", len(checks), PAGE_SIZE)
+    paths += _paged("/bs-files/", len(colls["bs_files"]), PAGE_SIZE)
+    paths += _paged("/checks-out/", len(colls["checks_out"]), PAGE_SIZE)
+    paths += ["/search/", "/about/"]
     # Every entity hub that cleared the >= min-claims threshold.
-    paths += [group.entity.path for group in group_by_entity(checks)]
+    for group in group_by_entity(checks):
+        paths += _paged(group.entity.path, len(group.checks), PAGE_SIZE)
     for path in paths:
         url = _sub(root, f"{{{_SM_NS}}}url")
         _sub(url, f"{{{_SM_NS}}}loc", f"{SITE.base_url}{path}")

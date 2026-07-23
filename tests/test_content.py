@@ -371,3 +371,49 @@ class TestEditorialFloor:
 
     def test_pick_lead_empty(self):
         assert content.pick_lead([]) is None
+
+
+class TestCodexHardening:
+    """Regression tests for the cross-model (Codex) security findings."""
+
+    def test_unsafe_source_url_schemes_dropped(self, make_detail):
+        doc = make_detail(
+            sources=[
+                {"source_name": "ok", "title": "keep", "url": "https://x/1"},
+                {"source_name": "ok2", "title": "keep2", "url": "http://x/2"},
+                {"source_name": "evil", "title": "xss", "url": "javascript:alert(1)"},
+                {"source_name": "evil2", "title": "data", "url": "data:text/html,hi"},
+                {"source_name": "evil3", "title": "scheme", "url": "JAVASCRIPT:x"},
+            ]
+        )
+        check = content.build_checks([doc])[0]
+        assert [s.title for s in check.sources] == ["keep", "keep2"]
+
+    def test_hostile_verification_id_rejected(self, make_detail):
+        for bad in ("../../etc/passwd", "a/b", "id?x=1", "id#f", "", "x" * 65):
+            doc = make_detail(verification_id="ok123456")
+            doc["detail"]["verification_id"] = bad
+            assert content.build_checks([doc]) == []
+
+    def test_hostile_related_id_dropped(self, make_detail):
+        doc = make_detail(verification_id="base1234")
+        doc["related"] = [
+            {"verification_id": "good5678", "claim": "fine"},
+            {"verification_id": "../evil", "claim": "nope"},
+        ]
+        check = content.build_checks([doc])[0]
+        assert [r.verification_id for r in check.related] == ["good5678"]
+
+    def test_malformed_qid_never_builds_wikidata_url(self, make_detail):
+        doc = make_detail(
+            entities=[
+                {"name": "Real", "qid": "Q42"},
+                {"name": "Fake", "qid": "not-a-qid"},
+                {"name": "Sneaky", "qid": "Q42/../evil"},
+            ]
+        )
+        check = content.build_checks([doc])[0]
+        by_name = {e.name: e for e in check.entities}
+        assert by_name["Real"].wikidata_url == "https://www.wikidata.org/wiki/Q42"
+        assert by_name["Fake"].wikidata_url == ""
+        assert by_name["Sneaky"].wikidata_url == ""

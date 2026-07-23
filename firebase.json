@@ -10,27 +10,48 @@
     ],
     "headers": [
       {
+        "source": "/static/css/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=604800, immutable"
+          }
+        ]
+      },
+      {
         "source": "/static/**",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
         ]
       },
       {
         "source": "/pagefind/**",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=604800, immutable"
+          }
         ]
       },
       {
         "source": "/og/**",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=86400" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=86400"
+          }
         ]
       },
       {
         "source": "**/*.html",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, must-revalidate"
+          }
         ]
       }
     ]

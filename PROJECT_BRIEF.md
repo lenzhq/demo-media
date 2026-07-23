@@ -187,6 +187,7 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 |-----|----------|--------|----------|
 | 1 | /plan-ceo-review (SELECTIVE EXPANSION) | COMPLETE | 4 findings, 5 expansion candidates presented |
 | 2 | /plan-design-review (+PSI round) | COMPLETE | 3 design fixes + 1 retracted, 3 PSI optimizations |
+| 3 | /codex review (cross-model, GPT) | COMPLETE | 2 P1 + 5 P2 findings — 7/7 fixed same-session |
 
 **Findings & dispositions:**
 1. **Editorial quality floor missing** → ACCEPTED (E1). Implemented in `content.py`
@@ -209,6 +210,13 @@ E3 DEFERRED (README covers v1) · E5 DEFERRED. Deferred items in TODOS.md.
 - **Fixed:** BS Meter under-weighted at hero size (bigger stops, 2px track, halo marker — it's the signature element); front-page lead repeated in 3 slots (now deduped from rail/strips/section blocks); long claims (>140 chars) swamped the hero scale (conditional `claim-quote--long`).
 - **Retracted after verification:** "article column left-stranded" — CSS already centers the measure; the left-anchored breadcrumb is intentional convention.
 - **PSI round (Pavel):** stylesheet now minified + content-hashed (`site.<hash>.css`) so the immutable 7-day cache header can never serve stale styles; `filter.js` confirmed deferred; GA gets `preconnect` when enabled; measured locally: 3ms DOM parse, zero render-blocking assets, zero webfonts, JS-free home page.
+
+**Codex cross-model review (run 3) — gate FAIL on arrival, all findings fixed:**
+- [P1] `javascript:`/`data:` URL schemes in API source data would render as clickable XSS → `_safe_url()` scheme allow-list (http/https) in the parser; Wikidata qids validated `^Q\d+$`.
+- [P1] `verification_id` used raw as filename/URL segment → `VID_RE` (`^[A-Za-z0-9_-]{1,64}$`) enforced at fetch ingestion AND parse; hostile related-ids dropped.
+- [P2×5, all fixed] sitemaps now include `/page/N/` variants; `/search/` shows a visible fallback when the Pagefind index is absent; immutable cache header narrowed to hashed CSS (rest of /static 1h); corrupt cached OG font falls back instead of crashing; catalog-walk completion math uses the server's observed page size (was: local constant — could have mass-dropped cache if the API page size ever changed).
+- 6 regression tests added (hostile schemes/ids/qids, sitemap pagination). Suite: 92 green.
+- Cross-model value confirmed: both P1s and 4 of 5 P2s were missed by the same-model reviews.
 
 **Premise verdict:** right problem, sharpened KPI — developer conviction first,
 AEO second; measure at launch. Stack choice (Python+Jinja static) re-validated

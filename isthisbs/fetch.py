@@ -37,7 +37,8 @@ from typing import Any
 
 from lenz_io import LenzError, LenzRateLimitError
 
-from .config import PAGE_SIZE, RELATED_LIMIT
+from .config import RELATED_LIMIT
+from .content import VID_RE
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ class SyncStats:
 def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncStats:
     """Bring the local cache in line with the public catalog.
 
-    Walks ``client.library.list(page=N, sort="recent")`` (fixed page_size=20),
+    Walks ``client.library.list(page=N, sort="recent")`` (server-defined page size),
     fetches detail + related for new/changed ids, and — on a full walk — drops
     ids that have disappeared from the catalog.
 
@@ -131,13 +132,20 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
         items = list(resp.items)
         if total is None:
             total = resp.total
+            # Completion math uses the server's OWN page size (fall back to
+            # the first page's observed batch length — later pages may be
+            # short). Assuming a local constant could mark an incomplete walk
+            # complete and let the drop pass delete valid cache.
+            page_size = getattr(resp, "page_size", None) or len(items)
         if not items:
             walk_completed = True  # ran past the end of the catalog
             break
 
         for item in items:
             vid = item.verification_id
-            if not vid:
+            if not vid or not VID_RE.match(str(vid)):
+                # A hostile/malformed id would become a cache FILENAME —
+                # never let it near the filesystem.
                 continue
             seen.add(vid)
             modified = item.modified_at or ""
@@ -159,7 +167,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
 
         # Stop once we've walked the whole catalog. ``total`` is authoritative;
         # the empty-page check above is the belt-and-braces fallback.
-        if total is not None and page * PAGE_SIZE >= total:
+        if total is not None and page * page_size >= total:
             walk_completed = True
             break
         page += 1

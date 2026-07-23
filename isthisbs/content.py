@@ -12,6 +12,7 @@ offline.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +37,20 @@ from .config import (
 logger = logging.getLogger(__name__)
 
 SLUG_MAX = 60  # slug text budget before the verification_id suffix
+
+#: verification_id shape we accept. Real Lenz ids are 8-char hex; the wider
+#: charset tolerates future formats while still blocking path traversal and
+#: URL-breaking characters (ids become filenames, URL segments, OG names).
+VID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+_SAFE_URL_SCHEMES = ("http://", "https://")
+
+
+def _safe_url(url: str | None) -> str:
+    """Only http(s) URLs survive — external API data must never smuggle
+    ``javascript:``/``data:`` schemes into rendered links."""
+    url = (url or "").strip()
+    return url if url.lower().startswith(_SAFE_URL_SCHEMES) else ""
 
 
 # --------------------------------------------------------------------------- #
@@ -184,8 +199,8 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
     vid = d.get("verification_id")
     claim = (d.get("claim") or "").strip()
     verdict = (d.get("verdict") or "").strip()
-    if not vid or not claim:
-        return None
+    if not vid or not VID_RE.match(str(vid)) or not claim:
+        return None  # hostile/malformed ids never become filenames or URLs
     if verdict in EXCLUDED_VERDICTS or verdict not in VERDICTS:
         return None  # Error verdicts (and anything unknown) never render
     language = (d.get("language") or "en").strip().lower()
@@ -194,7 +209,13 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
 
     audit = d.get("audit") or {}
     entities = tuple(
-        Entity(name=name, qid=(e.get("qid") or ""), slug=entity_slug(name))
+        Entity(
+            name=name,
+            qid=(
+                qid if re.match(r"^Q\d+$", qid := (e.get("qid") or "").strip()) else ""
+            ),
+            slug=entity_slug(name),
+        )
         for e in (d.get("entities") or [])
         if (name := (e.get("name") or "").strip())
     )
@@ -202,12 +223,12 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
         Source(
             source_name=s.get("source_name") or "",
             title=(s.get("title") or s.get("source_name") or "Source").strip(),
-            url=s.get("url") or "",
+            url=url,
             snippet=s.get("snippet") or "",
             date=s.get("date") or "",
         )
         for s in (d.get("sources") or [])
-        if s.get("url")
+        if (url := _safe_url(s.get("url")))
     )
     related = tuple(
         RelatedRef(
@@ -216,7 +237,7 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
             verdict=(r.get("verdict") or "").strip(),
         )
         for r in (doc.get("related") or [])
-        if r.get("verification_id")
+        if r.get("verification_id") and VID_RE.match(str(r["verification_id"]))
     )
     return Check(
         verification_id=vid,

@@ -105,14 +105,28 @@ def _font(name: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     path = (_font_paths or {}).get(name)
     font: ImageFont.FreeTypeFont | ImageFont.ImageFont
     if path and path.exists():
-        font = ImageFont.truetype(str(path), size)
-    else:
         try:
-            font = ImageFont.load_default(size)  # Pillow >= 10.1
-        except TypeError:  # older Pillow ignores size
-            font = ImageFont.load_default()
+            font = ImageFont.truetype(str(path), size)
+        except OSError:
+            # A corrupt/truncated cached TTF (interrupted download) must take
+            # the fallback path, not crash the build. Remove it so the next
+            # run re-fetches a clean copy.
+            logger.warning("Corrupt cached font %s — removing, using default", path)
+            path.unlink(missing_ok=True)
+            font = _default_font(size)
+            _font_cache[key] = font
+            return font
+    else:
+        font = _default_font(size)
     _font_cache[key] = font
     return font
+
+
+def _default_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    try:
+        return ImageFont.load_default(size)  # Pillow >= 10.1
+    except TypeError:  # older Pillow ignores size
+        return ImageFont.load_default()
 
 
 def _load_fonts_if_needed() -> None:

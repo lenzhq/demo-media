@@ -26,6 +26,13 @@
 <script src="/pagefind/pagefind-ui.js" defer></script>
 <script>
   window.addEventListener("DOMContentLoaded", function () {
+    if (!window.PagefindUI) {
+      // Index not deployed (built with --skip-search / Pagefind unavailable):
+      // say so instead of leaving a silently dead page.
+      document.getElementById("search").innerHTML =
+        '<p class="feed__empty">Search is temporarily unavailable. Try ' +
+        '<a href="/latest/">Latest</a> or the <a href="/bs-files/">BS Files</a>.</p>';
+    }
     if (window.PagefindUI) {
       new window.PagefindUI({
         element: "#search",

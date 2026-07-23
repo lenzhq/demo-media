@@ -36,6 +36,7 @@ class Site:
     # Attribution targets (the "Powered by Lenz" disclosure).
     lenz_home: str = "https://lenz.io"
     lenz_api_docs: str = "https://lenz.io/developers"
+    lenz_verify: str = "https://lenz.io/verify"  # "Verify any claim" CTA target
     lenz_sdk_python: str = "https://pypi.org/project/lenz-io/"
     lenz_sdk_node: str = "https://www.npmjs.com/package/lenz-io"
     github_repo: str = "https://github.com/lenzhq/isthisbs"

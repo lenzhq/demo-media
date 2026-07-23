@@ -208,3 +208,18 @@ def test_llms_full_txt_lists_every_claim(tmp_path, checks):
         assert check.claim in text
         # Dual-labelled: canonical key present alongside the BS label.
         assert check.verdict.key in text
+
+
+def test_sitemap_pages_includes_pagination(tmp_path, make_detail):
+    # 45 same-section checks -> /health/ + /health/page/2/ + /health/page/3/
+    docs = [
+        make_detail(verification_id=f"pg{i:06d}", domain="Health") for i in range(45)
+    ]
+    checks = content.build_checks(docs)
+    seo.write_assets(checks, tmp_path)
+    locs = (tmp_path / "sitemap-pages.xml").read_text(encoding="utf-8")
+    assert "/health/</loc>" in locs
+    assert "/health/page/2/</loc>" in locs
+    assert "/health/page/3/</loc>" in locs
+    assert "/health/page/4/" not in locs
+    assert "/latest/page/2/</loc>" in locs
