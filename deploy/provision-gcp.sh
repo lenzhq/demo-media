@@ -23,7 +23,7 @@ set -euo pipefail
 
 # Prefer an installed firebase CLI; fall back to npx (which needs npm network).
 fb() {
-  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else fb "$@"; fi
+  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else npx --yes firebase-tools@13 "$@"; fi
 }
 
 # --------------------------------------------------------------------------- #

@@ -10,7 +10,7 @@ accepted: E1 editorial floor, E4 PR preview channels):
   is built on the Lenz Python SDK (the README's content, surfaced where
   visitors are). The README covers this for v1.
 - **E5 — Date archives / weekly digest email.** RSS covers freshness for v1.
-- **Launch checklist (Pavel/Vicky, outside this repo):** link from
+- **Launch checklist (outside this repo):** link from
   lenz.io/developers; `@isthisbs` bot bio + reply links; Show HN post.
   ~~DNS → Firebase~~ DONE 2026-07-23 (site LIVE at isthisbs.org; www 301s).
 - **X-bot link switch (Lenz repo, one-liner):** point the @isthisbs reply URL
@@ -27,3 +27,5 @@ accepted: E1 editorial floor, E4 PR preview channels):
 - **Future interactivity (votes/comments/challenges):** Firestore + anonymous
   auth + lazy JS islands; nightly build bakes aggregates back into static HTML.
   See PROJECT_BRIEF.md → "Future: interactivity layer".
+- **When the repo goes public:** enable branch protection on `main`
+  (require PR + green CI — free on public repos).

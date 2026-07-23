@@ -74,7 +74,7 @@ Color is never the sole carrier — the label text is always present.
 
 ## 4. The BS Meter (signature component)
 
-**Article size** (`.meter`): a horizontal track of 5 square stops (10px, hairline-bordered, 8px gaps, connected by a hairline). The verdict's stop is filled with its `fill` color and scaled 1.6×. Track ends carry tiny mono labels `NOT BS` (left) and `TOTAL BS` (right). Below the track: `TOTAL BS` in mono 700 1rem in the verdict `text` color, followed by ` — Verdict: False` in mono `--ink-60`. Wrapper: `role="img" aria-label="BS meter: Total BS. Verdict: False."` with `aria-hidden` on the decorative track. Pure HTML/CSS.
+**Article size** (`.meter`): a horizontal track of 5 square stops (10px, hairline-bordered, 8px gaps, connected by a hairline). The verdict's stop is filled with its `fill` color and scaled 1.7×. Track ends carry tiny mono labels `NOT BS` (left) and `TOTAL BS` (right). Below the track: `TOTAL BS` in mono 700 1rem in the verdict `text` color, followed by ` — Verdict: False` in mono `--ink-60`. Wrapper: `role="img" aria-label="BS meter: Total BS. Verdict: False."` with `aria-hidden` on the decorative track. Pure HTML/CSS.
 
 **Card size** (`.bs-pill`): inline-flex pill — 8px verdict-colored square + BS label in mono 600 `--fs-label` in verdict `text` color; 1px hairline border, 2px 8px padding, radius 3px.
 
@@ -86,15 +86,15 @@ Squares, not circles, everywhere (echoes the wordmark block).
 - **Rules:** 1px hairlines separate every major band; the masthead bottom rule is 3px ink (the "fold line").
 - **Folio line** (very top, mono `--fs-label`): weekday+date (build date) · tagline (hidden on mobile) · right: `POWERED BY LENZ ↗` chip (hairline border pill → lenz.io, `rel="noopener"`).
 - **Masthead:** centered wordmark — styled HTML text (home: large ~64px; inner pages: ~36px, left-aligned in a compact sticky bar with nav inline). Below: nav row — mono labels: 8 sections · LATEST · ABOUT · SEARCH (icon+label). Active page: yellow underline + `aria-current="page"`. Mobile: horizontal scroll nav (no hamburger).
-- **Card** (`.check-card`): top hairline; kicker row (mono: SECTION · date); headline (display serif, link); `.bs-pill`; optional 2-line summary (`-webkit-line-clamp`). Variants: `--lead` (hero: standfirst visible, big type), `--row` (list rows in rails/feeds: single line + pill).
+- **Card** (`.check-card`): top hairline; kicker row (mono: SECTION · date); headline (display serif, link); `.bs-pill`; optional 2-line summary (`-webkit-line-clamp`). Variant: `--row` (list rows in rails/feeds: single line + pill).
 - **Pagination** (mono): `← NEWER · PAGE 2 OF 14 · OLDER →` as links; current page plain text.
 - **Filter chips** (section hubs): row of `.bs-pill`-styled buttons: ALL · NOT BS · HARDLY BS · SOME BS · MOSTLY BS · TOTAL BS. JS toggles `hidden` on `[data-verdict]` items; `aria-pressed`; no-JS default = ALL (chips enabled by JS).
-- **Attribution box** (article footer, hairline border, yellow left rule 3px): "This check was produced by **Lenz**, an independent fact-checking engine. IsThisBS presents the results." + `READ THE FULL ANALYSIS ON LENZ ↗`.
-- **Footer:** 3px ink top rule; columns: Sections / Site (Latest, BS Files, Checks Out, About, Search, RSS) / Built on Lenz (disclosure paragraph + lenz.io, API docs, Python SDK, Node SDK, GitHub repo links). Bottom line: `© 2026 IsThisBS · MIT · Every verdict by Lenz · Made with the Lenz API`.
+- **Attribution box** (article footer, hairline border, yellow left rule 3px): "This check was produced by **Lenz**, an independent fact-checking engine. IsThisBS presents the results." + `READ THE FULL ANALYSIS ON LENZ ↗` and `Fact check any claim yourself ↗`.
+- **Footer:** 3px ink top rule; columns: Sections / Site (Latest, BS Files, Checks Out, About, Search, RSS) / Built on Lenz (disclosure paragraph + Fact-check-anything CTA, lenz.io, API docs links).
 
 ## 6. Page anatomies
 
-- **Home:** folio → large masthead → nav → **lead check** (kicker, hero headline, article-size meter, standfirst, READ THE CHECK →) beside **FRESH CHECKS** rail (8 row-cards) → **THE BS FILES** band (label + 4 cards + `ALL BS FILES →`) → two-column section blocks (each: SECTION label, 4 row-cards, `MORE →`) → **CHECKS OUT** band (4 cards) → **FREQUENTLY CHECKED** entity cloud (mono links sized by count) → about band (one sentence + `HOW THIS SITE WORKS →` + `BUILD YOUR OWN ↗`).
+- **Home:** folio → large masthead → nav → **lead check** (kicker, hero headline, article-size meter, standfirst, READ THE CHECK →) beside **FRESH CHECKS** rail (6 row-cards) → **THE BS FILES** band (label + 4 cards + `ALL BS FILES →`) → two-column section blocks (each: SECTION label, 4 row-cards, `MORE →`) → **CHECKS OUT** band (4 cards) → **FREQUENTLY CHECKED** entity cloud (mono links sized by count) .
 - **Section hub:** breadcrumb; H1 (section title); blurb (standfirst); filter chips; feed of cards (20/page); pagination.
 - **Article:** breadcrumb (mono: HOME › SECTION); kicker `SECTION · {date}`; `THE CLAIM` label; H1 in the display serif with oversized quote marks (CSS pseudo-elements — signals "claim under examination, not our assertion"); meter block + `Verified by Lenz · {date}` mono; `THE SHORT VERSION` H2 + body; `CAVEATS` H2 + warning list (only if warnings); panel-divided note (only if split — hairline box, mono `PANEL DIVIDED` label + one line: "Lenz's model panel did not reach unanimous agreement on this one."); `THE RECEIPTS` H2 + numbered source list (title link, mono meta: source_name · date); `MORE CHECKS` H2 + row-cards; attribution box.
 - **Topic:** breadcrumb; kicker `TOPIC`; H1 entity name; mono count line ("7 claims checked"); feed; pagination.

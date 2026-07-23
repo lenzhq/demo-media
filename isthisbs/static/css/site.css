@@ -121,7 +121,7 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* ---- Mono texture: kickers / labels ------------------------------------ */
 .kicker, .check-card__kicker, .article__kicker, .crumbs, .pager, .folio,
 .nav, .footer__head, .page-count, .meter__end, .meter__verdict,
-.bs-pill__label, .chip, .receipt__meta, .byline, .band__more {
+.bs-pill__label, .chip, .receipt__meta, .band__more {
   font-family: var(--font-mono);
 }
 .kicker {
@@ -295,9 +295,6 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .check-card__summary, .check-card__standfirst {
   color: var(--ink-60); margin: 0;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.check-card__standfirst {
-  -webkit-line-clamp: 3; font-size: var(--fs-standfirst); font-weight: 600; color: var(--ink);
 }
 .check-card__more { font-family: var(--font-mono); font-size: var(--fs-meta); margin: 0; }
 

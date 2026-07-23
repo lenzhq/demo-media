@@ -13,7 +13,7 @@ set -euo pipefail
 
 # Prefer an installed firebase CLI; fall back to npx (which needs npm network).
 fb() {
-  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else fb "$@"; fi
+  if command -v firebase >/dev/null 2>&1; then firebase "$@"; else npx --yes firebase-tools@13 "$@"; fi
 }
 
 GCP_PROJECT="${GCP_PROJECT:-isthisbs-prod}"
@@ -47,7 +47,7 @@ python3 -m venv functions/venv
 functions/venv/bin/pip install -q -r functions/requirements.txt
 find functions/isthisbs -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 fb deploy \
-  --only hosting \
+  --only hosting,functions \
   --project "${GCP_PROJECT}" \
   --non-interactive
 

@@ -2,7 +2,6 @@
   Check card (DESIGN.md §5). Three variants:
     ""     — default feed card: kicker, headline, pill, 2-line summary.
     "row"  — compact list row (rails/feeds): kicker, single-line headline, pill.
-    "lead" — hero card: standfirst visible, big type, "Read the check →".
 
   `heading` sets the headline element (h2 in top-level feeds, h3 when the card
   sits under a section-block h2) to keep heading nesting correct.
@@ -27,11 +26,5 @@
     <a href="{{ check.path }}">{{ check.claim }}</a>
   </{{ heading }}>
   {{ pill(check) }}
-  {% if variant == "lead" and check.summary_paragraphs %}
-  <p class="check-card__standfirst">{{ check.summary_paragraphs[0] }}</p>
-  <p class="check-card__more"><a href="{{ check.path }}">Read the check →</a></p>
-  {% elif variant != "row" and check.summary_paragraphs %}
-  <p class="check-card__summary">{{ check.summary_paragraphs[0] }}</p>
-  {% endif %}
 </article>
 {% endmacro %}

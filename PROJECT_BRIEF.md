@@ -1,6 +1,6 @@
 # IsThisBS? — Project Brief & Execution Plan
 
-> Working name **IsThisBS?** (`isthisbs.org` placeholder — configurable). An independent, public, MIT-licensed **editorial fact-check media site** built entirely on the **public Lenz API via the `lenz-io` Python SDK**. Completely standalone: separate repo (`~/Lenz-Media`, GitHub name `isthisbs`), separate domain, own brand and design. The only thing it takes from Lenz is the database of public verified claims. Also the reference implementation of "how to build something real on the Lenz API."
+> Working name **IsThisBS?** (`isthisbs.org` placeholder — configurable). An independent, public, MIT-licensed **editorial fact-check media site** built entirely on the **public Lenz API via the `lenz-io` Python SDK**. Completely standalone: its own repo, domain, brand, and design. The only thing it takes from Lenz is the database of public verified claims. Also the reference implementation of "how to build something real on the Lenz API."
 
 ## Context — why this exists
 
@@ -105,7 +105,7 @@ v1 has **no database**: content truth lives in the Lenz catalog; `.cache/` is a 
 ## Repo layout & module contracts
 
 ```
-~/Lenz-Media (repo: isthisbs)
+. (repo root)
 ├── PROJECT_BRIEF.md            # this document (mirror)
 ├── DESIGN.md                   # full design system spec
 ├── README.md                   # doubles as the lenz-io SDK walkthrough
@@ -144,21 +144,6 @@ Fully offline pytest suite (fake SDK objects/fixture dicts — never hits the ne
 - `test_ogimage.py` — emits 1200×630 PNG; deterministic cache key.
 CI runs ruff + pytest on every PR/push. Real-fetch smoke (`--max-pages 2`) is a manual/deploy-time check, not PR CI.
 
-## Execution process (step-by-step, with agents)
-
-Orchestrated from a Claude Code session; bulk file production fans out to **opus subagents** with the contract docs (this file + `DESIGN.md` + `config.py`/`content.py`) as their spec. Steps:
-
-1. **Contracts (main session):** update this plan; write `DESIGN.md`; write `isthisbs/config.py` + `content.py` (+ `__init__.py`) by hand — every agent codes against these.
-2. **Fan-out (4 parallel opus agents, disjoint files):**
-   - **Agent A — data layer:** `fetch.py` + `build.py` (CLI orchestration calling the module contracts).
-   - **Agent B — design implementation:** `render.py` + all `templates/` + `static/` per DESIGN.md.
-   - **Agent C — SEO/AEO:** `seo.py` + `ogimage.py`.
-   - **Agent D — infra:** `pyproject.toml`, `Makefile`, `README.md`, `LICENSE`, `.gitignore`, both workflows, `deploy/` (Firebase + WIF provisioning).
-3. **Tests (opus agent E, after A–C):** writes the offline suite against the real code + contracts.
-4. **Integration (main session):** install, `ruff check`, `pytest`; fix drift between modules; run a real keyless smoke build (`python build.py --max-pages 2`), inspect `dist/` output; local `make serve` sanity pass.
-5. **Commit** scaffold on `main` (no push until asked).
-6. **Reviews (in sequence):** `/plan-ceo-review` → `/plan-design-review` → `/codex` review → `/plan-eng-review`; triage findings, apply accepted fixes.
-7. **Later (Pavel):** create `isthisbs-prod` GCP project + run `deploy/provision-gcp.sh`, create GitHub repo + push, set WIF vars, first deploy, domain purchase/DNS.
 
 ## Decisions (settled — don't re-litigate)
 
@@ -180,56 +165,3 @@ Orchestrated from a Claude Code session; bulk file production fans out to **opus
 - Powered-by-Lenz disclosure + backlink sitewide and per article; every article links to `lenz.io/c/{verification_id}`.
 - Zero secrets in repo or CI (WIF only); `pytest` green offline; ruff clean; scheduled Action builds and deploys.
 - Design is visibly distinct from lenz.io; headlines stay neutral; wit confined to interface labels.
-
-## GSTACK REVIEW REPORT
-
-| Run | Reviewer | Status | Findings |
-|-----|----------|--------|----------|
-| 1 | /plan-ceo-review (SELECTIVE EXPANSION) | COMPLETE | 4 findings, 5 expansion candidates presented |
-| 2 | /plan-design-review (+PSI round) | COMPLETE | 3 design fixes + 1 retracted, 3 PSI optimizations |
-| 3 | /codex review (cross-model, GPT) | COMPLETE | 2 P1 + 5 P2 findings — 7/7 fixed same-session |
-| 4 | /plan-eng-review (HOLD SCOPE) | COMPLETE | 1 critical + 3 rigor findings — 4/4 fixed |
-
-**Findings & dispositions:**
-1. **Editorial quality floor missing** → ACCEPTED (E1). Implemented in `content.py`
-   (`meets_editorial_floor`: ≥2 sources + ≥200-char summary; `pick_lead`: newest
-   check with ≥3 sources). Tuned against live catalog data: real checks carry
-   18–41 sources and 280–460-char summaries, so the floor catches degenerate
-   content only — plus a NEW data-driven finding: receipts render capped at 10
-   (`SOURCES_SHOWN_MAX`) with "+N more on Lenz" link (article page + llms-full.txt).
-2. **Zero measurement** → RESOLVED same-day: Pavel opted into GA4 now (build-time `GA_MEASUREMENT_ID` variable, never hardcoded; absent → zero markup; previews untracked).
-3. **ClaimReview expectations** → calibrated: entity/AEO hygiene, not a
-   rich-results play. No change.
-4. **Launch/distribution unplanned** → recorded in TODOS.md (Pavel/Vicky, outside repo).
-
-**Expansion decisions (Pavel, 2026-07-23):** E1 ACCEPTED · E4 ACCEPTED
-(PR preview channels, `.github/workflows/preview.yml`) · E2 DEFERRED-to-launch ·
-E3 DEFERRED (README covers v1) · E5 DEFERRED. Deferred items in TODOS.md.
-
-**Design review (run 2) — rated against DESIGN.md, reviewed on rendered output (desktop/article/mobile screenshots of real catalog content):**
-- Visual identity 9/10 (distinct newsprint brand, real X mark, zero slop patterns); IA/navigation 9/10; article anatomy 9/10; states/edge cases 8/10.
-- **Fixed:** BS Meter under-weighted at hero size (bigger stops, 2px track, halo marker — it's the signature element); front-page lead repeated in 3 slots (now deduped from rail/strips/section blocks); long claims (>140 chars) swamped the hero scale (conditional `claim-quote--long`).
-- **Retracted after verification:** "article column left-stranded" — CSS already centers the measure; the left-anchored breadcrumb is intentional convention.
-- **PSI round (Pavel):** stylesheet now minified + content-hashed (`site.<hash>.css`) so the immutable 7-day cache header can never serve stale styles; `filter.js` confirmed deferred; GA gets `preconnect` when enabled; measured locally: 3ms DOM parse, zero render-blocking assets, zero webfonts, JS-free home page.
-
-**Codex cross-model review (run 3) — gate FAIL on arrival, all findings fixed:**
-- [P1] `javascript:`/`data:` URL schemes in API source data would render as clickable XSS → `_safe_url()` scheme allow-list (http/https) in the parser; Wikidata qids validated `^Q\d+$`.
-- [P1] `verification_id` used raw as filename/URL segment → `VID_RE` (`^[A-Za-z0-9_-]{1,64}$`) enforced at fetch ingestion AND parse; hostile related-ids dropped.
-- [P2×5, all fixed] sitemaps now include `/page/N/` variants; `/search/` shows a visible fallback when the Pagefind index is absent; immutable cache header narrowed to hashed CSS (rest of /static 1h); corrupt cached OG font falls back instead of crashing; catalog-walk completion math uses the server's observed page size (was: local constant — could have mass-dropped cache if the API page size ever changed).
-- 6 regression tests added (hostile schemes/ids/qids, sitemap pagination). Suite: 92 green.
-- Cross-model value confirmed: both P1s and 4 of 5 P2s were missed by the same-model reviews.
-
-**Eng review (run 4, HOLD SCOPE) — architecture verified, 4 findings fixed:**
-- [critical] **Mass-drop guard**: an anomalously tiny-but-"complete" catalog walk could gut the cache and deploy a near-empty site → drop pass now refuses >20% removals (floor 10), logs loudly, counts an error. Regression-tested both directions (refusal at 95%, normal 5-claim churn still drops).
-- CI observability: daily-build failures now notify via optional Discord webhook (dormant without the Actions secret — the build itself stays keyless); sync/floor/render stats land in the Actions job summary (`pipefail`-safe tee).
-- Unattended-build hygiene: dependency major-version caps in pyproject.
-- Verified-safe by inspection (recorded): zero-checks build aborts → deploy never runs (fail-closed); per-claim API errors keep stale cache entries (stale beats gone); actions/cache saves only on success (no poisoned cache).
-- Test pyramid (right shape for a static generator): 94 offline unit/integration tests (PR CI) → real-API daily build as the live smoke → PR preview channels as visual smoke. Stripe-style paid-endpoint tests: n/a (keyless reads only).
-
-**Premise verdict:** right problem, sharpened KPI — developer conviction first,
-AEO second; measure at launch. Stack choice (Python+Jinja static) re-validated
-against alternatives (Astro/Hugo, Django SSR) and stands.
-
-VERDICT: ALL FOUR REVIEWS CLEARED (CEO + Design + Codex + Eng) — 18 findings raised across four lenses, 18 fixed, 0 open. Scaffold validated green: 94 offline tests, ruff clean, live keyless build, PSI-optimized output.
-
-NO UNRESOLVED DECISIONS

@@ -22,7 +22,7 @@ No credentials. No API key. The Lenz catalog is read keyless.
 
 ```bash
 git clone https://github.com/lenzhq/demo-media.git
-cd isthisbs
+cd demo-media   # repo name; the product/package is `isthisbs`
 make install     # pip install -e ".[dev,search]"
 make smoke       # fast 2-page keyless build into dist/
 make serve       # http://localhost:8080
@@ -62,7 +62,7 @@ Lenz API ──▶ fetch (incremental cache) ──▶ Check model ──▶ Jin
 - **Search** — [Pagefind](https://pagefind.app/) indexes `dist/` after render
   for client-side search; skipped gracefully when unavailable.
 
-The whole thing is a few hundred lines of Python. That's the point.
+The whole thing is a few thousand lines of small, legible Python. That's the point.
 
 ---
 
@@ -93,6 +93,10 @@ related = client.verifications.related(item.verification_id, limit=5)
 for r in related.items:
     print("related:", r.claim)
 ```
+
+> Note: `related` currently requires an API key — the build treats it as
+> best-effort and falls back to local entity overlap for "More Fact Checks".
+
 
 That's the entire data layer. See [`isthisbs/fetch.py`](isthisbs/fetch.py) for
 the cached, error-tolerant version.
@@ -127,6 +131,11 @@ Build flags (`python build.py …`):
 ---
 
 ## Deploy
+
+After any deploy, `make smoke-live` verifies the live site end to end
+(redirect matrix, catalog coverage, SEO assets, the `/c/` function).
+
+### Details
 
 Hosting is **Firebase Hosting** in a dedicated GCP project (`isthisbs-prod`).
 CI deploys from GitHub Actions via **Workload Identity Federation** — no JSON
