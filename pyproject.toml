@@ -20,7 +20,7 @@ keywords = ["fact-checking", "static-site", "lenz", "claimreview", "pagefind"]
 
 # Runtime dependencies for the static build.
 dependencies = [
-    "lenz-io>=2.3,<3",      # the public Lenz API SDK — all reads are keyless
+    "lenz-io>=2.5,<3",      # the public Lenz API SDK — all reads are keyless (2.5.0: related() went keyless)
     "jinja2>=3.1,<4",            # HTML template rendering
     "pillow>=10,<12",            # OG-image (1200x630) card generation
     "python-slugify>=8,<9",    # stable slug minting (the API exposes no slug)

@@ -53,20 +53,20 @@ Light ("newsprint"):
 --accent:   #FFD23F   /* caution yellow — the only brand accent */
 --card:     #FFFFFF   /* optional raised surfaces (use sparingly) */
 ```
-Dark (auto via `prefers-color-scheme`; same accent):
-```
---paper: #16140F  --ink: #EDE9DF  --ink-60: #A29B8C  --hairline: #2E2A22  --card: #1D1A14
-```
+**Light-only by design.** Like a printed newspaper (and like nytimes.com,
+theguardian.com, ft.com), the site renders on paper white regardless of the
+OS theme — `color-scheme: light` pins UA form controls to match. No dark
+palette, no theme switcher: one surface to design, QA, and keep honest.
 
-**Verdict tokens** — two variants each: `fill` (vivid; meter marker, pill square, OG blocks — graphic use) and `text` (AA ≥4.5:1 on paper for label text). Dark mode swaps `text` for the lighter set.
+**Verdict tokens** — two variants each: `fill` (vivid; meter marker, pill square, OG blocks — graphic use) and `text` (AA ≥4.5:1 on paper for label text).
 
-| Verdict | class | fill | text (light) | text (dark) |
-|---|---|---|---|---|
-| True / NOT BS | `v-not-bs` | `#2E7D32` | `#1E6B24` | `#7BC67E` |
-| Mostly True / HARDLY BS | `v-hardly-bs` | `#558B2F` | `#41701F` | `#A5C96A` |
-| Mixed / SOME BS | `v-some-bs` | `#B58900` | `#7A5D00` | `#E0B84C` |
-| Mostly False / MOSTLY BS | `v-mostly-bs` | `#C75000` | `#9C3F00` | `#E88A55` |
-| False / TOTAL BS | `v-total-bs` | `#C62828` | `#B3261E` | `#F08C86` |
+| Verdict | class | fill | text |
+|---|---|---|---|
+| True / NOT BS | `v-not-bs` | `#2E7D32` | `#1E6B24` |
+| Mostly True / HARDLY BS | `v-hardly-bs` | `#558B2F` | `#41701F` |
+| Mixed / SOME BS | `v-some-bs` | `#B58900` | `#7A5D00` |
+| Mostly False / MOSTLY BS | `v-mostly-bs` | `#C75000` | `#9C3F00` |
+| False / TOTAL BS | `v-total-bs` | `#C62828` | `#B3261E` |
 
 Color is never the sole carrier — the label text is always present.
 

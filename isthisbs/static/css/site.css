@@ -3,11 +3,10 @@
    Single stylesheet, no framework, no webfonts. Implements the DESIGN.md
    token system with system-font stacks (see the spec-change note: zero font
    requests for PageSpeed). "Newsprint + caution tape": paper, ink, hairlines,
-   one caution-yellow accent. Dark mode via prefers-color-scheme, with a
-   manual override: `data-theme="light|dark"` on <html> (set pre-paint from
-   localStorage by the inline script in base.html) beats the OS preference,
-   so every dark block ships in two forms — the media query gated on
-   :root:not([data-theme="light"]) and a [data-theme="dark"] duplicate.
+   one caution-yellow accent. LIGHT-ONLY BY DESIGN: like a printed newspaper
+   (and nytimes.com / theguardian.com / ft.com), the site renders on paper
+   white regardless of OS theme — `color-scheme: light` keeps UA form
+   controls and scrollbars consistent under a dark OS.
    ========================================================================= */
 
 /* ---- Tokens ------------------------------------------------------------ */
@@ -46,47 +45,15 @@
   --radius: 3px;
 }
 
-:root { color-scheme: light dark; }
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
+:root { color-scheme: light; }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #16140F;
-    --ink: #EDE9DF;
-    --ink-60: #A29B8C;
-    --hairline: #2E2A22;
-    --card: #1D1A14;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #16140F;
-  --ink: #EDE9DF;
-  --ink-60: #A29B8C;
-  --hairline: #2E2A22;
-  --card: #1D1A14;
-}
-
-/* Verdict tokens — `--fill` (graphic) + `--vtext` (AA text). Fill is stable
-   across themes; text lightens in dark mode (DESIGN.md §3). */
+/* Verdict tokens — `--fill` (graphic) + `--vtext` (AA text on paper). */
 .v-not-bs   { --fill: #2E7D32; --vtext: #1E6B24; }
 .v-hardly-bs{ --fill: #558B2F; --vtext: #41701F; }
 .v-some-bs  { --fill: #B58900; --vtext: #7A5D00; }
 .v-mostly-bs{ --fill: #C75000; --vtext: #9C3F00; }
 .v-total-bs { --fill: #C62828; --vtext: #B3261E; }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .v-not-bs   { --vtext: #7BC67E; }
-  :root:not([data-theme="light"]) .v-hardly-bs{ --vtext: #A5C96A; }
-  :root:not([data-theme="light"]) .v-some-bs  { --vtext: #E0B84C; }
-  :root:not([data-theme="light"]) .v-mostly-bs{ --vtext: #E88A55; }
-  :root:not([data-theme="light"]) .v-total-bs { --vtext: #F08C86; }
-}
-:root[data-theme="dark"] .v-not-bs   { --vtext: #7BC67E; }
-:root[data-theme="dark"] .v-hardly-bs{ --vtext: #A5C96A; }
-:root[data-theme="dark"] .v-some-bs  { --vtext: #E0B84C; }
-:root[data-theme="dark"] .v-mostly-bs{ --vtext: #E88A55; }
-:root[data-theme="dark"] .v-total-bs { --vtext: #F08C86; }
 
 /* ---- Reset / base ------------------------------------------------------ */
 *, *::before, *::after { box-sizing: border-box; }
@@ -172,15 +139,12 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   margin-left: auto; padding: 2px 8px; border: 1px solid var(--hairline);
   border-radius: 999px; text-decoration: none; white-space: nowrap; color: var(--ink);
 }
-/* Theme cycle button — folio-chip family: same pill, but a <button>. */
-.theme-toggle {
-  padding: 6px 12px; margin: -4px 0; border: 1px solid var(--hairline);
-  border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer;
-  font: inherit; text-transform: uppercase; letter-spacing: inherit;
-  white-space: nowrap;
+/* Mobile folio width budget: hide the tagline and the weekday so the date
+   and the Lenz chip fit in 375px without overflowing the page. */
+@media (max-width: 44rem) {
+  .folio__tagline { display: none; }
+  .folio__dow { display: none; }
 }
-.theme-toggle:hover { border-color: var(--ink); }
-@media (max-width: 44rem) { .folio__tagline { display: none; } }
 
 /* ---- Masthead + wordmark + nav ----------------------------------------- */
 .masthead { border-bottom: 3px solid var(--ink); }
@@ -216,6 +180,11 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   text-align: left; padding-top: var(--sp-3); padding-bottom: var(--sp-3);
 }
 .masthead--compact .wordmark { font-size: 1.75rem; }
+/* Mobile inner pages: the section nav needs the width more than the full
+   lockup does — keep just the "BS?" mark as the home link. */
+@media (max-width: 44rem) {
+  .masthead--compact .wordmark__ink { display: none; }
+}
 .masthead--compact .nav { margin: 0; border: 0; }
 
 .nav {
@@ -223,14 +192,25 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
   border-top: 1px solid var(--hairline);
   font-size: var(--fs-label); text-transform: uppercase; letter-spacing: 0.08em;
 }
-.masthead--compact .nav { margin-left: auto; }
+/* min-width: 0 — a flex child's default min-width:auto refuses to shrink
+   below content width, so the whole nav (not the list) overflowed the page
+   on mobile; with 0 the list's own overflow-x scrolling kicks in. */
+.masthead--compact .nav { margin-left: auto; min-width: 0; }
 .nav__list {
   display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-4);
-  list-style: none; margin: 0; padding: var(--sp-3) 0;
+  list-style: none; margin: 0; padding: var(--sp-3) 6px;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
   justify-content: center;
 }
-.masthead--compact .nav__list { justify-content: flex-end; padding: 0; }
+.masthead--compact .nav__list { justify-content: flex-end; padding: 0 6px; }
+/* When the list overflows (mobile), centered/end justification puts part of
+   the overflow past the reachable scroll range (scrollLeft can't go negative
+   — the first links were clipped ~170px off-screen). Start-align it; the 6px
+   inline padding above gives the hit-area highlight's negative-margin
+   overhang room at the scroll edges instead of being clipped flush. */
+@media (max-width: 44rem) {
+  .nav__list, .masthead--compact .nav__list { justify-content: flex-start; }
+}
 .nav__list a { text-decoration: none; white-space: nowrap; padding-bottom: 2px; }
 .nav__list a[aria-current="page"] {
   text-decoration: underline; text-decoration-color: var(--accent);
@@ -462,8 +442,8 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* ---- Search (Pagefind → our tokens) ------------------------------------ */
 .pf-search { margin-top: var(--sp-4); }
 /* :root:root outranks Pagefind's own :root defaults — its stylesheet loads
-   after ours and would otherwise win the cascade with hardcoded LIGHT values,
-   which is exactly what breaks dark mode. Our tokens flip with the scheme. */
+   after ours and would otherwise win the cascade with its own hardcoded
+   values instead of the site tokens. */
 :root:root {
   --pagefind-ui-scale: 1;
   --pagefind-ui-primary: var(--ink);
@@ -536,7 +516,9 @@ main .footer__links { margin-bottom: var(--sp-8); }
 .pf-search .pagefind-ui__search-input {
   color: var(--ink) !important;
   background-color: var(--card) !important;
-  border-color: var(--hairline) !important;
+  /* ink-60, not hairline: an empty text input is identified by its border
+     alone, so the boundary needs WCAG 1.4.11's 3:1 (hairline is ~1.3:1). */
+  border-color: var(--ink-60) !important;
   font-family: var(--font-serif) !important;
 }
 .pf-search .pagefind-ui__search-input::placeholder {
