@@ -127,3 +127,28 @@ def build_live_html(detail: dict) -> str:
 </main>
 </body>
 </html>"""
+
+
+def build_notfound_html() -> str:
+    """On-brand 404 for the function path (invalid/unknown /c/ ids) —
+    mirrors 404.html's voice without depending on hosting assets."""
+    return """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>404 — IsThisBS?</title><meta name="robots" content="noindex">
+<style>
+  body { margin:0; background:#FAF7F0; color:#141310; text-align:center;
+    font-family: ui-serif, 'Iowan Old Style', Palatino, Georgia, serif; }
+  @media (prefers-color-scheme: dark) { body { background:#16140F; color:#EDE9DF; } }
+  .bar { height:12px; background:#FFD23F; }
+  .code { font-size: clamp(4rem, 18vw, 9rem); font-weight:800; margin:1.2em 0 0; line-height:1; }
+  h1 { font-size:1.5rem; margin:.6em 0 2em; }
+  a { color:inherit; text-decoration:underline; text-decoration-color:#FFD23F;
+    text-decoration-thickness:2px; text-underline-offset:3px;
+    font-family:ui-monospace, Menlo, monospace; font-size:.8125rem;
+    letter-spacing:.08em; text-transform:uppercase; }
+</style></head><body><div class="bar"></div>
+<p class="code">404</p>
+<h1>This claim is BS — it doesn't exist (or hasn't been checked yet).</h1>
+<p><a href="/">Home</a> &nbsp;·&nbsp; <a href="/latest/">Latest</a> &nbsp;·&nbsp; <a href="/search/">Search</a></p>
+</body></html>"""

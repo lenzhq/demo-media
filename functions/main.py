@@ -47,8 +47,7 @@ def claimlive(req: https_fn.Request) -> https_fn.Response:
         detail = live_core.fetch_detail(m.group(1))
         if detail is None:
             return https_fn.Response(
-                "<h1>404</h1><p>This claim is BS — it doesn't exist "
-                '(or hasn\'t been checked). <a href="/">IsThisBS?</a></p>',
+                live_core.build_notfound_html(),
                 status=404,
                 headers={"Content-Type": "text/html; charset=utf-8"},
             )

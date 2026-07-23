@@ -28,7 +28,7 @@ smoke:  ## Fast 2-page build to sanity-check the pipeline
 	python build.py --max-pages 2
 
 serve:  ## Serve dist/ locally at http://localhost:8080
-	python -m http.server 8080 -d dist
+	python3 scripts/serve.py 8080 dist
 
 test:  ## Run the offline pytest suite
 	pytest -q
