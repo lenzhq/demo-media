@@ -169,7 +169,10 @@ def build(args: argparse.Namespace) -> int:
 
     # 5. OG images — brand cards, hash-cached in the .cache tree.
     if args.skip_og:
-        logger.info("Skipping OG image generation (--skip-og).")
+        copied = ogimage.copy_cached(cache_dir, out_dir)
+        logger.info(
+            "Skipping OG rendering (--skip-og); copied %d cached card(s).", copied
+        )
     else:
         with _Stage("og-images"):
             count = ogimage.generate(checks, cache_dir, out_dir)

@@ -333,6 +333,28 @@ def _prune_variants(og_cache: Path, prefix: str, keep: str) -> None:
                 logger.warning("Could not prune stale OG card %s", stale)
 
 
+def copy_cached(cache_dir: Path, out_dir: Path) -> int:
+    """Copy already-rendered cards from the cache into ``out_dir/og/``.
+
+    Used by ``--skip-og`` builds: skipping should skip the (slow) rendering,
+    not lose the cards from the output — the render step wipes ``out_dir``,
+    so without this every skip-og rebuild shipped a site whose og:image
+    URLs 404. Costs ~0.2s for a full catalog.
+    """
+    og_cache = Path(cache_dir) / "og"
+    if not og_cache.is_dir():
+        return 0
+    dest = Path(out_dir) / "og"
+    dest.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for png in og_cache.glob("*.png"):
+        # Cached names are ``{id}-{hash}.png``; published names are ``{id}.png``.
+        public = png.stem.rsplit("-", 1)[0] + ".png" if "-" in png.stem else png.name
+        shutil.copyfile(png, dest / public)
+        copied += 1
+    return copied
+
+
 def generate(checks: list, cache_dir: Path, out_dir: Path) -> int:
     """Render every card (incrementally) and publish to ``out_dir/og/``.
 
