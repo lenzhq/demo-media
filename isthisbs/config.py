@@ -39,7 +39,7 @@ class Site:
     lenz_verify: str = "https://lenz.io/verify"  # "Verify any claim" CTA target
     lenz_sdk_python: str = "https://pypi.org/project/lenz-io/"
     lenz_sdk_node: str = "https://www.npmjs.com/package/lenz-io"
-    github_repo: str = "https://github.com/lenzhq/isthisbs"
+    github_repo: str = "https://github.com/lenzhq/demo-media"
     twitter_handle: str = "@isthisbs"
 
     def lenz_claim_url(self, verification_id: str) -> str:

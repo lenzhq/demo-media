@@ -21,7 +21,7 @@ that renders them.
 No credentials. No API key. The Lenz catalog is read keyless.
 
 ```bash
-git clone https://github.com/lenzhq/isthisbs.git
+git clone https://github.com/lenzhq/demo-media.git
 cd isthisbs
 make install     # pip install -e ".[dev,search]"
 make smoke       # fast 2-page keyless build into dist/

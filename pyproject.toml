@@ -35,7 +35,7 @@ dev = ["pytest", "ruff"]
 
 [project.urls]
 Homepage = "https://isthisbs.org"
-Repository = "https://github.com/lenzhq/isthisbs"
+Repository = "https://github.com/lenzhq/demo-media"
 "Powered by" = "https://lenz.io"
 
 [tool.setuptools]

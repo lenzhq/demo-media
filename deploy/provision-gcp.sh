@@ -25,7 +25,7 @@ set -euo pipefail
 # Parameters (override via env; sensible defaults for this project)
 # --------------------------------------------------------------------------- #
 GCP_PROJECT="${GCP_PROJECT:-isthisbs-prod}"       # target GCP/Firebase project id
-GH_REPO="${GH_REPO:-lenzhq/isthisbs}"             # owner/repo allowed to deploy
+GH_REPO="${GH_REPO:-lenzhq/demo-media}"             # owner/repo allowed to deploy
 BILLING_ACCOUNT="${BILLING_ACCOUNT:-}"            # REQUIRED: e.g. 0123AB-4567CD-89EF01
 REGION="${REGION:-us-central1}"                   # optional; Hosting is global, kept for consistency
 
