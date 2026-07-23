@@ -128,6 +128,9 @@
     an independent fact-checking engine. IsThisBS presents the results.
   </p>
   <p><a class="readlink" href="{{ check.lenz_url }}" rel="noopener" target="_blank">Read the full analysis on Lenz ↗</a>
-  <a class="attribution__cta attribution__cta--verify" href="{{ SITE.lenz_verify }}" rel="noopener">Fact check any claim yourself ↗</a></p>
+  <a class="attribution__cta attribution__cta--verify" href="{{ SITE.lenz_verify }}" rel="noopener">Fact check any claim yourself ↗</a>
+  {#- Prefilled GitHub issue form (flag-a-check.yml): field ids in the query
+      string map to the form's input/textarea ids. -#}
+  <a class="attribution__cta attribution__cta--flag" href="{{ SITE.github_repo }}/issues/new?template=flag-a-check.yml&title={{ ('Flag: ' ~ check.verification_id)|urlencode }}&claim-id={{ check.verification_id }}&claim={{ check.claim|urlencode }}&article={{ check.url|urlencode }}" rel="noopener" target="_blank">Flag this check ↗</a></p>
 </aside>
 {% endblock %}

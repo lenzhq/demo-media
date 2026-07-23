@@ -1,0 +1,47 @@
+name: Flag a check
+description: Report a fact check that looks wrong — the fastest way to get it fixed.
+title: "Flag: "
+labels: ["flag"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for flagging. The fields below are prefilled when you arrive
+        from an article's **Flag this check** link — just pick a reason and
+        tell us what looks off.
+  - type: input
+    id: claim-id
+    attributes:
+      label: Verification ID
+      description: The 8-character ID of the check (prefilled from the article).
+    validations:
+      required: true
+  - type: textarea
+    id: claim
+    attributes:
+      label: The claim
+      description: The claim as it appears on the article (prefilled).
+  - type: input
+    id: article
+    attributes:
+      label: Article URL
+      description: The isthisbs.org article this is about (prefilled).
+  - type: dropdown
+    id: reason
+    attributes:
+      label: What looks wrong?
+      options:
+        - Wrong verdict
+        - Unreliable or misread source
+        - Outdated — new evidence since the check
+        - Error in the summary or how sources are described
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What specifically looks off? Links to better evidence are the most useful thing you can give us.
+    validations:
+      required: true
