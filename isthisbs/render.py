@@ -62,7 +62,7 @@ _STATIC_DIR = Path(__file__).parent / "static"
 _DEFAULT_OG_PATH = "/og/site.png"
 
 #: How many entities appear in the home-page "Frequently Checked" cloud.
-_HOME_CLOUD_SIZE = 30
+_HOME_CLOUD_SIZE = 20  # 30 read as a link-wall at full catalog scale
 
 
 # --------------------------------------------------------------------------- #

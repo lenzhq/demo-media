@@ -181,7 +181,7 @@ SOURCES_SHOWN_MAX = 10  # receipts rendered on an article; rest link to Lenz
 PAGE_SIZE = 20  # cards per page on section/latest/topic feeds
 COLLECTION_SIZE = 40  # items in /bs-files/ and /checks-out/
 ENTITY_MIN_CLAIMS = 2  # entities need >= this many claims to earn a /topic/ page
-HOME_RAIL_SIZE = 8  # "Fresh Checks" rail
+HOME_RAIL_SIZE = 6  # "Fresh Checks" rail (8 left ~350px dead air under the lead)
 HOME_SECTION_SIZE = 4  # cards per section block on home
 HOME_STRIP_SIZE = 4  # BS Files / Checks Out strips on home
 FEED_SIZE = 50  # site-wide Atom feed entries

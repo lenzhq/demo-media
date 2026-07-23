@@ -70,7 +70,8 @@
 
 /* ---- Reset / base ------------------------------------------------------ */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html {
+  font-family: var(--font-serif); -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   background: var(--paper);
