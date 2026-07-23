@@ -241,3 +241,39 @@ def test_filed_under_links_only_topic_entities(tmp_path, make_detail):
     assert "Filed Under" in html
     assert '<a class="tag" href="/topic/linked-topic/">Linked Topic</a>' in html
     assert 'tag--plain">Solo Thing</span>' in html
+
+
+# --------------------------------------------------------------------------- #
+# Discussion CTA (baked GitHub-Discussions counts, zero-hiding)
+# --------------------------------------------------------------------------- #
+
+
+def test_article_zero_state_shows_verdict_challenge(tmp_path, checks):
+    """No discussion data -> the challenge prompt, linking to a PREFILLED
+    new-discussion form (never a bare '0 votes' line)."""
+    render.render_site(checks, tmp_path)
+    check = checks[0]
+    html = _article_path(tmp_path, check).read_text()
+    assert f"Disagree with {check.verdict.bs_label}?" in html
+    assert "/discussions/new?" in html
+    assert check.verification_id in html
+    assert "0 ·" not in html  # zero counts are never rendered
+
+
+def test_article_nonzero_counts_render_and_link(tmp_path, checks):
+    check = checks[0]
+    dmap = {
+        check.verification_id: {
+            "url": "https://github.com/lenzhq/demo-media/discussions/42",
+            "up": 5,
+            "down": 0,
+            "comments": 3,
+        }
+    }
+    render.render_site(checks, tmp_path, discussions=dmap)
+    html = _article_path(tmp_path, check).read_text()
+    assert "discussions/42" in html
+    assert "👍 5" in html
+    assert "💬 3" in html
+    assert "👎" not in html  # zero component hidden
+    assert f"Disagree with {check.verdict.bs_label}?" not in html

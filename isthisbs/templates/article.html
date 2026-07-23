@@ -131,6 +131,15 @@
   <a class="attribution__cta attribution__cta--verify" href="{{ SITE.lenz_verify }}" rel="noopener">Fact check any claim yourself ↗</a>
   {#- Prefilled GitHub issue form (flag-a-check.yml): field ids in the query
       string map to the form's input/textarea ids. -#}
-  <a class="attribution__cta attribution__cta--flag" href="{{ SITE.github_repo }}/issues/new?template=flag-a-check.yml&title={{ ('Flag: ' ~ check.verification_id)|urlencode }}&claim-id={{ check.verification_id }}&claim={{ check.claim|urlencode }}&article={{ check.url|urlencode }}" rel="noopener" target="_blank">Flag this check ↗</a></p>
+  <a class="attribution__cta attribution__cta--flag" href="{{ SITE.github_repo }}/issues/new?template=flag-a-check.yml&title={{ ('Flag: ' ~ check.verification_id)|urlencode }}&claim-id={{ check.verification_id }}&claim={{ check.claim|urlencode }}&article={{ check.url|urlencode }}" rel="noopener" target="_blank">Flag this check ↗</a>
+  {#- Community line, zero-hiding: counts render only once they exist; until
+      then, a verdict-challenge prompt. The new-discussion title carries the
+      [verification_id] suffix discussions.py matches on at build time. -#}
+  {% set disc = DISCUSSIONS.get(check.verification_id) %}
+  {% if disc and (disc.up + disc.down + disc.comments) > 0 %}
+  <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url }}" rel="noopener" target="_blank">{% if disc.up %}👍 {{ disc.up }} · {% endif %}{% if disc.down %}👎 {{ disc.down }} · {% endif %}{% if disc.comments %}💬 {{ disc.comments }} · {% endif %}Join the discussion ↗</a>
+  {% else %}
+  <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url if disc else SITE.github_repo ~ '/discussions/new?category=general&title=' ~ ((check.claim[:70] ~ ' [' ~ check.verification_id ~ ']')|urlencode) ~ '&body=' ~ (('Claim: ' ~ check.claim ~ '\n\nVerdict: ' ~ check.verdict.bs_label ~ ' (' ~ check.verdict.key ~ ')\nArticle: ' ~ check.url ~ '\nFull analysis: ' ~ check.lenz_url ~ '\n\nMake your case below — links to evidence welcome.')|urlencode) }}" rel="noopener" target="_blank">Disagree with {{ check.verdict.bs_label }}? Make your case ↗</a>
+  {% endif %}</p>
 </aside>
 {% endblock %}

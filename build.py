@@ -33,7 +33,7 @@ import sys
 import time
 from pathlib import Path
 
-from isthisbs import content, fetch, ogimage, render, seo
+from isthisbs import content, discussions, fetch, ogimage, render, seo
 
 logger = logging.getLogger("isthisbs.build")
 
@@ -143,6 +143,13 @@ def build(args: argparse.Namespace) -> int:
                 if callable(close):
                     close()
 
+    # 1b. Discussions — bake community counts (CI has GITHUB_TOKEN; locally
+    # this degrades to the cached file, or the zero state with none).
+    if not args.skip_fetch:
+        with _Stage("discussions"):
+            discussions.sync(cache_dir)
+    dmap = discussions.load(cache_dir)
+
     # 2. Content — parse the cache into the editorial model.
     with _Stage("content"):
         raw = fetch.load_raw(cache_dir)
@@ -161,7 +168,7 @@ def build(args: argparse.Namespace) -> int:
         if out_dir.exists():
             shutil.rmtree(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
-        render.render_site(checks, out_dir)
+        render.render_site(checks, out_dir, discussions=dmap)
 
     # 4. SEO — sitemaps, feeds, robots.txt, llms.txt, and friends.
     with _Stage("seo"):

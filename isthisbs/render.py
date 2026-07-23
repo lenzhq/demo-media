@@ -70,13 +70,21 @@ _HOME_CLOUD_SIZE = 20  # 30 read as a link-wall at full catalog scale
 # --------------------------------------------------------------------------- #
 
 
-def render_site(checks: list[Check], out_dir: Path) -> None:
+def render_site(
+    checks: list[Check],
+    out_dir: Path,
+    *,
+    discussions: dict[str, dict] | None = None,
+) -> None:
     """Render the entire site from ``checks`` into ``out_dir``.
 
     ``checks`` is the newest-first list produced by ``content.build_checks``.
     All groupings (sections, entity hubs, collections, pagination) are derived
     here so the caller only has to pass the flat list. Idempotent: writes files,
     never reads prior output.
+
+    ``discussions`` is the baked GitHub-Discussions count map
+    (``discussions.load``); absent entries render the zero-state prompt.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -84,6 +92,7 @@ def render_site(checks: list[Check], out_dir: Path) -> None:
     css_path, css_body = _css_asset()
     env = _build_env()
     env.globals["CSS_PATH"] = css_path
+    env.globals["DISCUSSIONS"] = discussions or {}
 
     # Resolve related refs against *locally rendered* checks only — never link
     # to a claim that isn't on this site.
