@@ -416,8 +416,9 @@ def test_related_refresh_respects_budget(tmp_path, monkeypatch):
     monkeypatch.setattr(fetch, "RELATED_REFRESH_BUDGET", 2)
     client = FakeClient(catalog=catalog, detail=detail)
     fetch.sync(client, tmp_path)
-    # oldest two only (R0005 aged 35d, R0004 aged 34d)
-    assert [vid for vid, _ in client.related_calls] == ["R0005", "R0004"]
+    # oldest two only (R0005 aged 35d, R0004 aged 34d); parallel workers make
+    # the call ORDER nondeterministic, the SELECTION is what's contractual.
+    assert {vid for vid, _ in client.related_calls} == {"R0005", "R0004"}
 
 
 def test_related_refresh_stamps_empty_results(tmp_path):
@@ -441,3 +442,48 @@ def test_related_refresh_stamps_empty_results(tmp_path):
     client2 = FakeClient(catalog=catalog, detail=detail)
     fetch.sync(client2, tmp_path)  # freshly stamped → NOT probed again
     assert client2.related_calls == []
+
+
+class _SlowClient(FakeClient):
+    """FakeClient whose detail fetches sleep, and which records how many are
+    in flight simultaneously — proves the pool actually overlaps requests."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        import threading
+
+        self._lock = threading.Lock()
+        self._active = 0
+        self.peak_concurrency = 0
+        real_get = self.verifications.get
+
+        def slow_get(vid):
+            with self._lock:
+                self._active += 1
+                self.peak_concurrency = max(self.peak_concurrency, self._active)
+            try:
+                # NOT time.sleep — the autouse _no_sleep fixture no-ops that.
+                threading.Event().wait(0.03)
+                return real_get(vid)
+            finally:
+                with self._lock:
+                    self._active -= 1
+
+        self.verifications.get = slow_get
+
+
+def test_detail_fetches_run_in_parallel(tmp_path):
+    """New/changed claims fetch concurrently (FETCH_WORKERS pool), not one by
+    one — this is the difference between an ~80min and ~10min CI build when
+    a large upstream batch changes. Correctness must be unchanged: every doc
+    cached, manifest complete."""
+    catalog = [(f"P{i:04d}", "m") for i in range(12)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    client = _SlowClient(catalog=catalog, detail=detail)
+    stats = fetch.sync(client, tmp_path)
+
+    assert stats.new == 12 and stats.errors == 0
+    assert client.peak_concurrency >= 2
+    assert len(list((tmp_path / "claims").glob("*.json"))) == 12
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert set(manifest) == {vid for vid, _ in catalog}

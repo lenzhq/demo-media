@@ -29,7 +29,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,6 +48,13 @@ logger = logging.getLogger(__name__)
 # 5xx/429 with backoff, so this is not a rate-limit guard — it just keeps us
 # from hammering the public endpoint in a tight loop when the cache is cold.
 FETCH_DELAY = 0.05
+
+# Bounded fan-out for the network-bound phases (detail fetches + related
+# refresh). Sequential fetching runs at ~1 claim/sec, which turns a large
+# upstream batch into an hour-plus build; six workers keep it polite (the SDK
+# auto-retries 429s with backoff) while cutting wall clock ~6x. httpx.Client
+# is thread-safe, so the one SDK client is shared across workers.
+FETCH_WORKERS = 6
 
 # Rotating related-list refresh: re-fetch a doc's related list once it's older
 # than RELATED_REFRESH_DAYS, at most RELATED_REFRESH_BUDGET docs per sync, so
@@ -119,6 +128,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
 
     stats = SyncStats()
     seen: set[str] = set()
+    queued: dict[str, tuple[str, bool]] = {}  # vid -> (modified_at, is_new)
 
     total: int | None = None
     page = 1
@@ -163,13 +173,10 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
                 stats.unchanged += 1
                 continue
 
-            is_new = vid not in manifest
-            if _fetch_and_store(client, claims_dir, vid, stats):
-                manifest[vid] = modified
-                if is_new:
-                    stats.new += 1
-                else:
-                    stats.updated += 1
+            if vid not in queued:
+                # Defer the expensive fetch: the walk stays cheap and the
+                # pool below overlaps the network round-trips.
+                queued[vid] = (modified, vid not in manifest)
 
         # Stop once we've walked the whole catalog. ``total`` is authoritative;
         # the empty-page check above is the belt-and-braces fallback.
@@ -177,6 +184,25 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
             walk_completed = True
             break
         page += 1
+
+    # Fan the deferred fetches across the worker pool. Manifest/stat updates
+    # happen here on the main thread (as_completed); only ``stats.errors``
+    # is touched inside workers, guarded by _STATS_LOCK in _fetch_and_store.
+    if queued:
+        with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as pool:
+            futures = {
+                pool.submit(_fetch_and_store, client, claims_dir, vid, stats): vid
+                for vid in queued
+            }
+            for fut in as_completed(futures):
+                vid = futures[fut]
+                modified, is_new = queued[vid]
+                if fut.result():
+                    manifest[vid] = modified
+                    if is_new:
+                        stats.new += 1
+                    else:
+                        stats.updated += 1
 
     # Drop pass — only on a COMPLETE, error-free walk of the full catalog. Ids
     # in the manifest we never saw are gone upstream; remove file + manifest
@@ -250,23 +276,35 @@ def _refresh_related(client: Any, claims_dir: Path) -> None:
 
     stale.sort()  # oldest first; the budget always goes to the stalest docs
     batch = stale[:RELATED_REFRESH_BUDGET]
-    refreshed = 0
-    for i, (_, path) in enumerate(batch):
+
+    def _refresh_one(path: Path) -> bool:
         vid = path.stem
-        try:
-            related = client.verifications.related(vid, limit=RELATED_LIMIT)
-        except LenzError as exc:
-            if i == 0:
-                # Probe failed — endpoint unreachable/anomalous; try next sync.
-                logger.info("Related refresh unavailable (%s) — skipping", exc)
-                return
-            continue  # per-claim miss mid-refresh: skip just this one
+        related = client.verifications.related(vid, limit=RELATED_LIMIT)
         doc = json.loads(path.read_text(encoding="utf-8"))
         doc["related"] = [item.model_dump(mode="json") for item in related.items]
         doc["related_refreshed_at"] = datetime.now(UTC).isoformat()
         path.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
-        refreshed += 1
         time.sleep(FETCH_DELAY)
+        return True
+
+    # Sequential probe first: one failed call means the endpoint is
+    # unreachable/anomalous — bow out without hammering it from six workers.
+    try:
+        _refresh_one(batch[0][1])
+    except LenzError as exc:
+        logger.info("Related refresh unavailable (%s) — skipping", exc)
+        return
+    refreshed = 1
+
+    def _safe_refresh(path: Path) -> bool:
+        try:
+            return _refresh_one(path)
+        except LenzError:
+            return False  # per-claim miss mid-refresh: skip just this one
+
+    if len(batch) > 1:
+        with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as pool:
+            refreshed += sum(pool.map(_safe_refresh, (p for _, p in batch[1:])))
     logger.info(
         "Related refresh: %d of %d stale docs re-fetched (budget %d)",
         refreshed,
@@ -307,6 +345,8 @@ def load_raw(cache_dir: Path) -> list[dict[str, Any]]:
 # Internals
 # --------------------------------------------------------------------------- #
 
+_STATS_LOCK = threading.Lock()
+
 
 def _fetch_and_store(client: Any, claims_dir: Path, vid: str, stats: SyncStats) -> bool:
     """Fetch detail + related for one id and write its cache doc.
@@ -315,6 +355,9 @@ def _fetch_and_store(client: Any, claims_dir: Path, vid: str, stats: SyncStats) 
     (capped) and retries exactly once. Any other SDK error (or a failed retry)
     is logged, counted in ``stats.errors``, and reported as ``False`` — the
     caller then leaves the manifest untouched for this id.
+
+    Runs on FETCH_WORKERS pool threads; ``stats.errors`` is the one piece of
+    shared state mutated here, guarded by _STATS_LOCK.
     """
     try:
         doc = _fetch_doc(client, vid)
@@ -326,11 +369,13 @@ def _fetch_and_store(client: Any, claims_dir: Path, vid: str, stats: SyncStats) 
             doc = _fetch_doc(client, vid)
         except LenzError as exc2:
             logger.warning("Retry after rate limit failed for %s: %s", vid, exc2)
-            stats.errors += 1
+            with _STATS_LOCK:
+                stats.errors += 1
             return False
     except LenzError as exc:
         logger.warning("Fetch failed for %s: %s", vid, exc)
-        stats.errors += 1
+        with _STATS_LOCK:
+            stats.errors += 1
         return False
 
     _write_cache_doc(claims_dir, vid, doc)
