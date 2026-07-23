@@ -369,3 +369,75 @@ def test_related_backfill_skips_when_unavailable(tmp_path):
     fetch.sync(client, tmp_path)
     # probe = at most one related call beyond the (zero) refetches
     assert len(client.related_calls) - calls_before <= 1
+
+
+def _age_doc(path, *, days: float, related=None) -> None:
+    """Rewrite a cache doc as if it were fetched ``days`` ago."""
+    from datetime import UTC, datetime, timedelta
+
+    doc = json.loads(path.read_text())
+    stamp = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+    doc["fetched_at"] = stamp
+    doc.pop("related_refreshed_at", None)
+    if related is not None:
+        doc["related"] = related
+    path.write_text(json.dumps(doc))
+
+
+def test_related_refresh_rotates_stale_docs(tmp_path):
+    """A doc whose related list was last (re)fetched over the refresh horizon
+    ago gets re-fetched on the next sync — new neighbors published since the
+    original build show up on old articles. Fresh docs are left alone."""
+    catalog = [("STALE001", "m"), ("FRESH001", "m")]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    client = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client, tmp_path)
+
+    _age_doc(tmp_path / "claims" / "STALE001.json", days=30)
+
+    client2 = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client2, tmp_path)
+    refreshed = [vid for vid, _ in client2.related_calls]
+    assert "STALE001" in refreshed
+    assert "FRESH001" not in refreshed
+    doc = json.loads((tmp_path / "claims" / "STALE001.json").read_text())
+    assert doc["related_refreshed_at"]  # stamped so it waits a full cycle
+
+
+def test_related_refresh_respects_budget(tmp_path, monkeypatch):
+    """Per-build cap: only the N stalest docs refresh in one sync, so an 8h
+    CI build stays bounded no matter how big the catalog grows."""
+    catalog = [(f"R{i:04d}", "m") for i in range(6)]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
+    for i, (vid, _) in enumerate(catalog):
+        _age_doc(tmp_path / "claims" / f"{vid}.json", days=30 + i)
+
+    monkeypatch.setattr(fetch, "RELATED_REFRESH_BUDGET", 2)
+    client = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client, tmp_path)
+    # oldest two only (R0005 aged 35d, R0004 aged 34d)
+    assert [vid for vid, _ in client.related_calls] == ["R0005", "R0004"]
+
+
+def test_related_refresh_stamps_empty_results(tmp_path):
+    """A claim with genuinely no neighbors gets its (empty) result STAMPED —
+    it must not be re-probed every single build (the old backfill hit every
+    empty list on every sync, ~1.3k calls/build for nothing)."""
+    catalog = [("EMPTY001", "m")]
+    detail = {vid: _detail_for(vid) for vid, _ in catalog}
+    fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
+    path = tmp_path / "claims" / "EMPTY001.json"
+    _age_doc(path, days=30, related=[])
+
+    client = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client, tmp_path)  # stale → refreshed
+    doc = json.loads(path.read_text())
+    assert doc["related_refreshed_at"]
+
+    # Simulate "server says: no neighbors" — empty list but freshly stamped.
+    doc["related"] = []
+    path.write_text(json.dumps(doc))
+    client2 = FakeClient(catalog=catalog, detail=detail)
+    fetch.sync(client2, tmp_path)  # freshly stamped → NOT probed again
+    assert client2.related_calls == []

@@ -47,6 +47,12 @@ logger = logging.getLogger(__name__)
 # from hammering the public endpoint in a tight loop when the cache is cold.
 FETCH_DELAY = 0.05
 
+# Rotating related-list refresh: re-fetch a doc's related list once it's older
+# than RELATED_REFRESH_DAYS, at most RELATED_REFRESH_BUDGET docs per sync, so
+# per-build API load stays bounded no matter how large the catalog grows.
+RELATED_REFRESH_DAYS = 7
+RELATED_REFRESH_BUDGET = 200
+
 # Hard ceiling on how long we honour a 429's ``Retry-After`` before giving up
 # on that claim. A pathological retry_after must not stall the whole build.
 MAX_RETRY_AFTER = 60
@@ -196,49 +202,77 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
                 _drop(claims_dir, manifest, vid)
                 stats.dropped += 1
 
-    # Related backfill (full walks only): unchanged claims never refetch, so
-    # docs cached while the related endpoint still required a key would keep
-    # ``related: []`` forever. One cheap probe per sync; while the endpoint
-    # is auth-walled this is a single failed call, and the first sync after
-    # it goes keyless fills every empty list.
+    # Related refresh (full walks only): unchanged claims never refetch, so a
+    # doc's related list would otherwise freeze at build time while new
+    # neighbors keep getting published upstream. Each sync re-fetches the
+    # stalest RELATED_REFRESH_BUDGET docs (by ``related_refreshed_at``, falling
+    # back to ``fetched_at``); at 3 builds/day the whole catalog cycles in a
+    # few days. Empty results are stamped too — a claim with genuinely no
+    # neighbors waits a full cycle instead of being re-probed every build.
     if max_pages is None:
-        _backfill_related(client, claims_dir)
+        _refresh_related(client, claims_dir)
 
     _write_manifest_atomic(manifest_path, manifest)
     logger.info("%s", stats)
     return stats
 
 
-def _backfill_related(client: Any, claims_dir: Path) -> None:
-    empty: list[Path] = []
+def _related_stamp(doc: dict[str, Any]) -> float:
+    """Epoch seconds of the doc's last related (re)fetch.
+
+    ``related_refreshed_at`` wins; ``fetched_at`` is the fallback for docs
+    written before the stamp existed. A doc from the pre-keyless era with an
+    empty list and no stamp reads as 0 — maximally stale, refreshed first.
+    Unparseable stamps also read as 0 rather than raising.
+    """
+    if not doc.get("related_refreshed_at") and doc.get("related") == []:
+        return 0.0
+    raw = doc.get("related_refreshed_at") or doc.get("fetched_at") or ""
+    try:
+        return datetime.fromisoformat(raw).timestamp()
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _refresh_related(client: Any, claims_dir: Path) -> None:
+    horizon = time.time() - RELATED_REFRESH_DAYS * 86400
+    stale: list[tuple[float, Path]] = []
     for path in claims_dir.glob("*.json"):
         try:
             doc = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if doc.get("related") == []:
-            empty.append(path)
-    if not empty:
+        stamp = _related_stamp(doc)
+        if stamp < horizon:
+            stale.append((stamp, path))
+    if not stale:
         return
 
-    filled = 0
-    for i, path in enumerate(empty):
+    stale.sort()  # oldest first; the budget always goes to the stalest docs
+    batch = stale[:RELATED_REFRESH_BUDGET]
+    refreshed = 0
+    for i, (_, path) in enumerate(batch):
         vid = path.stem
         try:
             related = client.verifications.related(vid, limit=RELATED_LIMIT)
         except LenzError as exc:
             if i == 0:
-                # Probe failed — endpoint (still) needs a key; try next sync.
-                logger.info("Related backfill unavailable (%s) — skipping", exc)
+                # Probe failed — endpoint unreachable/anomalous; try next sync.
+                logger.info("Related refresh unavailable (%s) — skipping", exc)
                 return
-            continue  # per-claim miss mid-backfill: skip just this one
+            continue  # per-claim miss mid-refresh: skip just this one
         doc = json.loads(path.read_text(encoding="utf-8"))
         doc["related"] = [item.model_dump(mode="json") for item in related.items]
-        if doc["related"]:
-            filled += 1
+        doc["related_refreshed_at"] = datetime.now(UTC).isoformat()
         path.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
+        refreshed += 1
         time.sleep(FETCH_DELAY)
-    logger.info("Related backfill: %d of %d empty lists filled", filled, len(empty))
+    logger.info(
+        "Related refresh: %d of %d stale docs re-fetched (budget %d)",
+        refreshed,
+        len(stale),
+        RELATED_REFRESH_BUDGET,
+    )
 
 
 def load_raw(cache_dir: Path) -> list[dict[str, Any]]:
