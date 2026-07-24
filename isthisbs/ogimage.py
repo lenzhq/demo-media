@@ -34,7 +34,7 @@ from .config import Verdict
 logger = logging.getLogger(__name__)
 
 # Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "4"  # v4: @isthisbs handle in the attribution line
+TEMPLATE_VERSION = "5"  # v5: verdict row raised clear of X's title-pill overlay
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -243,7 +243,9 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
 
     # --- Claim: adaptive size, vertically centered in its area ---
     area_top = 132
-    block_y = CARD_H - 96
+    # 150 (not 96) from the bottom: X's timeline title-pill overlays roughly
+    # the bottom 75px of the card — the verdict row must clear it.
+    block_y = CARD_H - 150
     area_bottom = block_y - 36  # guaranteed air above the verdict row
     max_text_w = CARD_W - 2 * MARGIN
     quoted = f"“{claim}”"

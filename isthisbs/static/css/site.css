@@ -577,7 +577,9 @@ main .footer__links { margin-bottom: var(--sp-8); }
 .footer__col a { display: inline-block; padding: 4px 6px; margin: -4px -6px; }
 /* The bordered chip carries its own padding — inflating it would drag the
    pill over the folio hairline. Grow its tap area modestly instead. */
-.folio__chip { padding: 6px 12px; margin: -4px 0; }
+/* margin-left stays `auto` — the shorthand had clobbered the base rule's
+   right-alignment, visible on mobile where the flex-1 tagline is hidden. */
+.folio__chip { padding: 6px 12px; margin: -4px 0 -4px auto; }
 
 /* Pagefind widget theming — its .svelte-* selectors outrank ours and it sets
    background from a variable but never `color` (UA black text on dark paper),
