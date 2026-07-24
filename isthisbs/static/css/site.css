@@ -96,7 +96,9 @@ a:hover { background: var(--accent); color: #141310; text-decoration-color: tran
 
 /* ---- Layout helpers ---------------------------------------------------- */
 .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
-main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
+/* Bottom padding sp-8, not sp-16: the footer brings its own 64px top margin,
+   and the two stacked read as a hole at every page end. */
+main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .dot { color: var(--ink-60); margin: 0 0.4em; }
 .muted { color: var(--ink-60); }
 
@@ -486,14 +488,20 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 /* ---- House ad (X bot self-promo, home page) ---------------------------- */
 .house-ad {
   border: 1px solid var(--hairline); border-left: 3px solid var(--accent);
-  background: var(--card); padding: var(--sp-4); margin: var(--sp-12) 0;
+  background: var(--card); padding: var(--sp-4);
+  /* No bottom margin — the footer's own 64px top margin is the gap;
+     stacking both read as a hole in the page. */
+  margin: var(--sp-12) 0 0;
 }
 .house-ad__kicker {
   font-family: var(--font-mono); font-size: var(--fs-label);
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-60);
   margin: 0 0 var(--sp-2);
 }
-.house-ad__body { margin: 0 0 var(--sp-3); max-width: 40rem; }
+/* Banner sentence, not a prose column: no measure cap (the 40rem cap made
+   the last word wrap alone); text-wrap:pretty kills widows when it does
+   wrap at narrow widths. */
+.house-ad__body { margin: 0 0 var(--sp-3); text-wrap: pretty; }
 .house-ad__links { margin: 0; }
 .house-ad__links .readlink { margin-right: var(--sp-6); }
 
@@ -528,6 +536,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .footer__links { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
   font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
   letter-spacing: 0.06em; }
+
+/* Anchor jumps must clear the sticky masthead/navbar (~45-60px) — without
+   this, #fragment targets scroll underneath it and the heading is hidden. */
+[id] { scroll-margin-top: 76px; }
 
 /* ---- Reduced motion ---------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
