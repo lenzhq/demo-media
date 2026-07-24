@@ -254,7 +254,7 @@ def test_article_zero_state_shows_verdict_challenge(tmp_path, checks):
     render.render_site(checks, tmp_path)
     check = checks[0]
     html = _article_path(tmp_path, check).read_text()
-    assert f"Disagree with {check.verdict.bs_label}?" in html
+    assert f"{check.verdict.bs_label}? Make your case" in html
     assert "/discussions/new?" in html
     assert check.verification_id in html
     assert "0 ·" not in html  # zero counts are never rendered
@@ -276,7 +276,7 @@ def test_article_nonzero_counts_render_and_link(tmp_path, checks):
     assert "👍 5" in html
     assert "💬 3" in html
     assert "👎" not in html  # zero component hidden
-    assert f"Disagree with {check.verdict.bs_label}?" not in html
+    assert f"{check.verdict.bs_label}? Make your case" not in html
 
 
 # --------------------------------------------------------------------------- #

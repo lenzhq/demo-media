@@ -133,7 +133,7 @@
   {% if disc and (disc.up + disc.down + disc.comments) > 0 %}
   <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url }}" rel="noopener" target="_blank">{% if disc.up %}👍 {{ disc.up }} · {% endif %}{% if disc.down %}👎 {{ disc.down }} · {% endif %}{% if disc.comments %}💬 {{ disc.comments }} · {% endif %}Join the discussion ↗</a>
   {% else %}
-  <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url if disc else SITE.github_repo ~ '/discussions/new?category=general&title=' ~ ((check.claim[:70] ~ ' [' ~ check.verification_id ~ ']')|urlencode) ~ '&body=' ~ (('Claim: ' ~ check.claim ~ '\n\nVerdict: ' ~ check.verdict.bs_label ~ ' (' ~ check.verdict.key ~ ')\nArticle: ' ~ check.url ~ '\nFull analysis: ' ~ check.lenz_url ~ '\n\nMake your case below — links to evidence welcome.')|urlencode) }}" rel="noopener" target="_blank">Disagree with {{ check.verdict.bs_label }}? Make your case ↗</a>
+  <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url if disc else SITE.github_repo ~ '/discussions/new?category=general&title=' ~ ((check.claim[:70] ~ ' [' ~ check.verification_id ~ ']')|urlencode) ~ '&body=' ~ (('Claim: ' ~ check.claim ~ '\n\nVerdict: ' ~ check.verdict.bs_label ~ ' (' ~ check.verdict.key ~ ')\nArticle: ' ~ check.url ~ '\nFull analysis: ' ~ check.lenz_url ~ '\n\nMake your case below — links to evidence welcome.')|urlencode) }}" rel="noopener" target="_blank">{{ check.verdict.bs_label }}? Make your case ↗</a>
   {% endif %}</p>
 </aside>
 
