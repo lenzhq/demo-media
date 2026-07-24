@@ -304,3 +304,17 @@ def test_ymyl_sections_carry_inline_disclaimer(tmp_path, checks):
             )
             seen_other += 1
     assert seen_ymyl and seen_other, "fixture set must cover both kinds of section"
+
+
+def test_x_bot_promotion_surfaces(tmp_path, checks):
+    """Tier 1+2 X-bot promotion: footer handle link on every page, the
+    house-ad band on home, and the About explainer anchor it links to."""
+    render.render_site(checks, tmp_path)
+    home = (tmp_path / "index.html").read_text()
+    assert "house-ad" in home and "https://x.com/isthisbs" in home
+    assert 'href="/about/#on-x"' in home
+    about = (tmp_path / "about" / "index.html").read_text()
+    assert 'id="on-x"' in about and "@isthisbs" in about
+    # footer link is sitewide — check an article too
+    article = _article_path(tmp_path, checks[0]).read_text()
+    assert "https://x.com/isthisbs" in article

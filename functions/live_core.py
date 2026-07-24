@@ -70,6 +70,26 @@ def build_live_html(detail: dict) -> str:
     label = html.escape(verdict.bs_label)
     key = html.escape(verdict.key)
     summary = html.escape((detail.get("executive_summary") or "").strip())
+    # Card description: verdict first, then as much summary as fits — X mostly
+    # shows title+image, but Slack/WhatsApp/Discord render the description.
+    raw_summary = " ".join((detail.get("executive_summary") or "").split())
+    desc_summary = (
+        raw_summary[:157].rsplit(" ", 1)[0] + "…"
+        if len(raw_summary) > 157
+        else raw_summary
+    )
+    description = html.escape(
+        f"{verdict.bs_label} — {desc_summary}"
+        if desc_summary
+        else f"{verdict.bs_label} — Verdict: {verdict.key}. Checked against independent sources."
+    )
+    warnings = [
+        html.escape(str(w)) for w in (detail.get("warnings") or []) if str(w).strip()
+    ]
+    caveats_html = ""
+    if warnings:
+        items = "".join(f"<li>{w}</li>" for w in warnings)
+        caveats_html = f'<p class="kicker" style="margin-top:2rem">Caveats</p><ul class="caveats">{items}</ul>'
     og_image = f"{SITE.base_url}/og-live/{vid}.png"
     # The permanent article URL is fully computable from the API payload —
     # canonical there from minute zero, so search equity never splits.
@@ -87,10 +107,10 @@ def build_live_html(detail: dict) -> str:
 <title>{title} — {html.escape(SITE.name)}</title>
 <meta name="robots" content="noindex">
 <link rel="canonical" href="{canonical}">
-<meta name="description" content="{label} — Verdict: {key}. Checked against independent sources.">
+<meta name="description" content="{description}">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{title}">
-<meta property="og:description" content="{label} — Verdict: {key}. Checked against independent sources.">
+<meta property="og:description" content="{description}">
 <meta property="og:image" content="{og_image}">
 <meta property="og:url" content="{SITE.base_url}/c/{vid}/">
 <meta name="twitter:card" content="summary_large_image">
@@ -98,7 +118,6 @@ def build_live_html(detail: dict) -> str:
 <style>
   body {{ margin:0; background:#FAF7F0; color:#141310;
     font-family: ui-serif, 'Iowan Old Style', Palatino, Georgia, serif; }}
-  @media (prefers-color-scheme: dark) {{ body {{ background:#16140F; color:#EDE9DF; }} }}
   .wrap {{ max-width: 42rem; margin: 0 auto; padding: 48px 24px; }}
   .bar {{ height:12px; background:#FFD23F; }}
   .kicker {{ font-family: ui-monospace, Menlo, monospace; font-size:.6875rem;
@@ -110,6 +129,8 @@ def build_live_html(detail: dict) -> str:
     background:{verdict.fill_hex}; margin-right:.4em; }}
   .note {{ font-family: ui-monospace, Menlo, monospace; font-size:.8125rem;
     opacity:.65; margin-top:2.5rem; }}
+  .caveats {{ margin:.5rem 0 0; padding-left:1.2em; }}
+  .caveats li {{ margin-bottom:.5rem; opacity:.8; }}
   a {{ color: inherit; text-decoration: underline; text-decoration-color:#FFD23F;
     text-decoration-thickness:2px; text-underline-offset:3px; }}
 </style>
@@ -121,9 +142,12 @@ def build_live_html(detail: dict) -> str:
   <h1>“{claim}”</h1>
   <p class="pill"><b></b>{label} — Verdict: {key}</p>
   <p>{summary}</p>
+  {caveats_html}
   <p><a href="{lenz_url}" rel="noopener">Read the full analysis on Lenz →</a></p>
   <p class="note">Fresh off the desk — the permanent article lands on
-    <a href="/">IsThisBS?</a> within a day.</p>
+    <a href="/">IsThisBS?</a> within a day. This check was summoned by tagging
+    <a href="https://x.com/isthisbs" rel="noopener">@isthisbs</a> on X —
+    tag it under any post to fact-check it.</p>
 </main>
 </body>
 </html>"""
@@ -139,7 +163,6 @@ def build_notfound_html() -> str:
 <style>
   body { margin:0; background:#FAF7F0; color:#141310; text-align:center;
     font-family: ui-serif, 'Iowan Old Style', Palatino, Georgia, serif; }
-  @media (prefers-color-scheme: dark) { body { background:#16140F; color:#EDE9DF; } }
   .bar { height:12px; background:#FFD23F; }
   .code { font-size: clamp(4rem, 18vw, 9rem); font-weight:800; margin:1.2em 0 0; line-height:1; }
   h1 { font-size:1.5rem; margin:.6em 0 2em; }

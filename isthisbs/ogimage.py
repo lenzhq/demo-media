@@ -34,7 +34,7 @@ from .config import Verdict
 logger = logging.getLogger(__name__)
 
 # Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "3"  # v3: top-right attribution, adaptive centered claim
+TEMPLATE_VERSION = "4"  # v4: @isthisbs handle in the attribution line
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -235,7 +235,9 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
 
     # Attribution — top-right, opposite the kicker.
     attr_font = _font(_MONO_LIGHT, 22)
-    attr = "IsThisBS?  ·  verified by Lenz"
+    # The handle rides on every share card — the cards travel on X itself,
+    # so this advertises the reply bot in the medium where it works.
+    attr = "IsThisBS?  ·  @isthisbs  ·  verified by Lenz"
     attr_w = _text_width(attr_font, attr)
     draw.text((CARD_W - MARGIN - attr_w, 62), attr, font=attr_font, fill=INK_60)
 

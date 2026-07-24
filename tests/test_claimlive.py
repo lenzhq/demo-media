@@ -98,3 +98,34 @@ class TestLiveCore:
         from PIL import Image
 
         assert Image.open(io.BytesIO(png)).size == (1200, 630)
+
+
+def test_live_page_card_carries_summary_and_caveats():
+    """The /c/ interim page: og:description leads verdict-then-summary, and
+    the body renders the caveats list when warnings exist."""
+    from functions.live_core import build_live_html
+
+    detail = _detail()
+    detail["executive_summary"] = "Solid evidence contradicts the stated numbers. " * 8
+    detail["warnings"] = [
+        "Numbers come from two different datasets.",
+        "<script>x</script>",
+    ]
+    page = build_live_html(detail)
+    # description: verdict label first, then trimmed summary, ellipsis capped
+    assert 'og:description" content="' in page
+    desc = page.split('og:description" content="')[1].split('"')[0]
+    assert desc.startswith(("NOT BS", "HARDLY BS", "SOME BS", "MOSTLY BS", "TOTAL BS"))
+    assert "Solid evidence contradicts" in desc and desc.endswith("…")
+    # caveats render, escaped
+    assert "Caveats" in page
+    assert "Numbers come from two different datasets." in page
+    assert "<script>x</script>" not in page and "&lt;script&gt;" in page
+
+
+def test_live_page_no_caveats_section_without_warnings():
+    from functions.live_core import build_live_html
+
+    detail = _detail()
+    detail.pop("warnings", None)
+    assert "Caveats" not in build_live_html(detail)
