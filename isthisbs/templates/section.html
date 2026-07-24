@@ -11,7 +11,7 @@
 <nav class="crumbs" aria-label="Breadcrumb">
   {% for name, path in breadcrumb %}
     {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
-    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">·</span>{% endif %}
   {% endfor %}
 </nav>
 

@@ -18,20 +18,19 @@
 {% block content %}
 <nav class="crumbs" aria-label="Breadcrumb">
   {% for name, path in breadcrumb %}
-  <a href="{{ path }}">{{ name|upper }}</a>{% if not loop.last %}<span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+  <a href="{{ path }}">{{ name|upper }}</a>{% if not loop.last %}<span class="crumbs__sep" aria-hidden="true">·</span>{% endif %}
   {% endfor %}
+  {#- Date rides the breadcrumb line (metadata middot, not a nav crumb) so the
+      header isn't three stacked mono lines — the old SECTION · date kicker was
+      redundant with the section crumb above. -#}
+  <span class="crumbs__sep" aria-hidden="true">·</span>
+  <time class="crumbs__date" datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
 </nav>
 
 <article class="article" data-pagefind-body data-pagefind-filter="verdict:{{ check.verdict_key }}">
   {#- Separate element per extra facet — comma syntax inside one attribute is
       parsed as multiple VALUES of the same filter, not a second filter. -#}
   <span hidden data-pagefind-filter="section">{{ check.section.title }}</span>
-  <p class="article__kicker" data-pagefind-ignore>
-    <a href="{{ check.section.path }}">{{ check.section.title|upper }}</a>
-    <span class="dot" aria-hidden="true">·</span>
-    <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
-  </p>
-
   <p class="kicker" data-pagefind-ignore>The Claim</p>
   <h1 class="article__title claim-quote{{ claim_size_class(check.claim) }}">{{ check.claim }}</h1>
 
