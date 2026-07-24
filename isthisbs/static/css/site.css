@@ -639,6 +639,11 @@ main .footer__links { margin-bottom: var(--sp-8); }
   display: inline-block;
   padding: 2px 6px; margin: -2px -6px; border-radius: 2px;
 }
+/* ≥24px touch target (Lighthouse target-size): the band's "ALL LATEST →"
+   style links are 11px type — grow the hit area vertically, zero shift. */
+.band__more, .band__more a {
+  padding-top: 6px; padding-bottom: 6px; margin-top: -6px; margin-bottom: -6px;
+}
 
 /* ---- Filed Under (article entity tags) --------------------------------- */
 .filed-under { margin-bottom: var(--sp-8); }
