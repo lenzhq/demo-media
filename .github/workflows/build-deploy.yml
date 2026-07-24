@@ -106,6 +106,9 @@ jobs:
           npx playwright install --with-deps chromium webkit
           npx playwright test
 
+      - name: Validate JSON-LD (ClaimReview / NewsArticle contract)
+        run: python scripts/validate_jsonld.py dist
+
       # --- Deploy (only once GCP_PROJECT is configured) -------------------- #
 
       - name: Authenticate to GCP via Workload Identity Federation
