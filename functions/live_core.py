@@ -198,6 +198,7 @@ def build_live_html(detail: dict) -> str:
     font-size:.8125rem; opacity:.65; margin-top:.15rem; }}
   .rmore {{ font-family: ui-monospace, Menlo, monospace; font-size:.8125rem;
     opacity:.8; }}
+  .deeplink {{ margin-top: 2.5rem; }}
   a {{ color: inherit; text-decoration: underline; text-decoration-color:#FFD23F;
     text-decoration-thickness:2px; text-underline-offset:3px; }}
 </style>
@@ -211,7 +212,7 @@ def build_live_html(detail: dict) -> str:
   <p>{summary}</p>
   {caveats_html}
   {receipts_html}
-  <p><a href="{lenz_url}" rel="noopener">Read the full analysis on Lenz →</a></p>
+  <p class="deeplink"><a href="{lenz_url}" rel="noopener">Read the full analysis on Lenz →</a></p>
   <p class="note">Fresh off the desk — the permanent article lands on
     <a href="/">IsThisBS?</a> within a day. This check was summoned by tagging
     <a href="https://x.com/isthisbs/with_replies" rel="noopener">@isthisbs</a> on X —
