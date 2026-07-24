@@ -98,11 +98,18 @@ def _rating_value(check: Check) -> int:
 
 
 def _trim(text: str, limit: int) -> str:
-    """Collapse whitespace and truncate to ``limit`` chars with an ellipsis."""
+    """Collapse whitespace and truncate to ``limit`` chars with an ellipsis.
+
+    Cuts at the last word boundary inside the budget — a mid-word chop reads
+    as a typo when Google renders the headline in a rich result.
+    """
     text = " ".join((text or "").split())
     if len(text) <= limit:
         return text
-    return text[: limit - 1].rstrip() + "…"
+    cut = text[: limit - 1]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:–—-") + "…"
 
 
 # --------------------------------------------------------------------------- #

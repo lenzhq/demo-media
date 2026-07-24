@@ -223,3 +223,16 @@ def test_sitemap_pages_includes_pagination(tmp_path, make_detail):
     assert "/health/page/3/</loc>" in locs
     assert "/health/page/4/" not in locs
     assert "/latest/page/2/</loc>" in locs
+
+
+def test_trim_cuts_at_word_boundary():
+    """A cropped headline must never end mid-word — Google renders it."""
+    from isthisbs.seo import _trim
+
+    text = "The Robert Koch Institute reported something rather long indeed"
+    out = _trim(text, 30)
+    assert out.endswith("…")
+    assert len(out) <= 30
+    # the fragment before the ellipsis is a whole word from the source
+    assert out[:-1].split()[-1] in text.split()
+    assert _trim("short", 30) == "short"
