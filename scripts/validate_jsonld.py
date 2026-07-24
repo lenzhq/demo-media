@@ -29,6 +29,19 @@ NEWSARTICLE_FIELDS = (
     "mainEntityOfPage",
 )
 
+# Canonical JSON-LD date shape: seconds precision, Z suffix. The API's raw
+# microseconds/+00:00 stamps are valid ISO 8601 but trip strict validators.
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+def _check_dates(node: dict, page, problems: list[str]) -> None:
+    for key in ("datePublished", "dateModified"):
+        value = node.get(key)
+        if value and not DATE_RE.match(value):
+            problems.append(
+                f"{node.get('@type')} {key} not canonical ISO-Z ({value}): {page}"
+            )
+
 
 def main(dist: Path) -> int:
     stats = {"pages": 0, "blocks": 0, "claimreviews": 0, "newsarticles": 0}
@@ -67,6 +80,7 @@ def main(dist: Path) -> int:
                         for key in RECOMMENDED_CLAIMREVIEW
                         if not node.get(key)
                     ]
+                    _check_dates(node, page, problems)
                 elif kind == "NewsArticle":
                     stats["newsarticles"] += 1
                     problems += [
@@ -74,6 +88,7 @@ def main(dist: Path) -> int:
                         for key in NEWSARTICLE_FIELDS
                         if not node.get(key)
                     ]
+                    _check_dates(node, page, problems)
 
     print(
         f"jsonld: {stats['blocks']} blocks on {stats['pages']} pages — "

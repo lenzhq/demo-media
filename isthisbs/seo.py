@@ -126,16 +126,17 @@ def claim_review(check: Check, *, base_url: str) -> dict:
     - ``reviewRating`` uses lenz_score on a 1(worst)..10(best) scale.
     - ``author`` is Lenz (the entity that actually produced the review);
       ``publisher`` is IsThisBS (the entity that publishes this page).
-    - ``itemReviewed`` is a ``Claim`` with an unknown-safe author (the original
-      claimant is unknown) and an ``appearance`` pointing at the Lenz canonical
-      record; ``about`` carries the entity subjects with Wikidata ``sameAs``.
+    - ``itemReviewed`` is a ``Claim`` (no author node — the original claimant
+      is unknown and the field is optional) with an ``appearance`` pointing at
+      the Lenz canonical record; ``about`` carries the entity subjects with
+      Wikidata ``sameAs``.
     """
     item_reviewed: dict = {
         "@type": "Claim",
         "text": check.claim,
-        # The original claimant is unknown; an explicit unknown-safe author
-        # keeps the Claim node valid without fabricating attribution.
-        "author": {"@type": "Organization", "name": "Unknown"},
+        # No author node: the original claimant is unknown, and omitting the
+        # OPTIONAL field is correct schema behavior — a placeholder value
+        # ("Unknown") is the kind of thing strict consumers reject outright.
         # Where an instance of the claim can be inspected in full.
         "appearance": {"@type": "CreativeWork", "url": check.lenz_url},
     }
@@ -148,7 +149,7 @@ def claim_review(check: Check, *, base_url: str) -> dict:
         "@type": "ClaimReview",
         "url": check.url,
         "claimReviewed": check.claim,
-        "datePublished": check.created_at,
+        "datePublished": _schema_dt(check.created_at, check.created_dt),
         "reviewBody": check.executive_summary,
         "reviewRating": {
             "@type": "Rating",
@@ -176,8 +177,10 @@ def news_article(check: Check, *, base_url: str) -> dict:
         "headline": _trim(check.claim, 110),
         "url": check.url,
         "mainEntityOfPage": check.url,
-        "datePublished": check.created_at,
-        "dateModified": check.modified_at or check.created_at,
+        "datePublished": _schema_dt(check.created_at, check.created_dt),
+        "dateModified": _schema_dt(
+            check.modified_at or check.created_at, check.created_dt
+        ),
         "image": [f"{base_url}{check.og_path}"],
         "articleSection": check.section.title,
         "author": _lenz_author(),
@@ -185,7 +188,7 @@ def news_article(check: Check, *, base_url: str) -> dict:
     }
     summary = check.summary_paragraphs
     if summary:
-        node["description"] = _trim(summary[0], 300)
+        node["description"] = _trim(summary[0], 160)
     mentions = _entity_things(check)
     if mentions:
         node["mentions"] = mentions
@@ -272,6 +275,16 @@ def _now() -> datetime:
 def _rfc3339(dt: datetime) -> str:
     """Atom / news timestamps: RFC 3339 (``2026-07-23T09:00:00+00:00``)."""
     return dt.astimezone(UTC).isoformat()
+
+
+def _schema_dt(iso: str, fallback: datetime) -> str:
+    """Canonical JSON-LD date: seconds precision, ``Z`` suffix.
+
+    The API's raw stamps (microseconds + ``+00:00``) are valid ISO 8601, but
+    strict third-party validators and naive parsers only accept the
+    ``2026-07-22T11:50:33Z`` shape — and Google's own doc examples use it.
+    """
+    return _to_dt(iso, fallback).astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _to_dt(iso: str, fallback: datetime) -> datetime:
