@@ -129,3 +129,33 @@ def test_live_page_no_caveats_section_without_warnings():
     detail = _detail()
     detail.pop("warnings", None)
     assert "Caveats" not in build_live_html(detail)
+
+
+def test_live_page_receipts_render_capped_and_safe():
+    """Receipts: capped at RECEIPTS_MAX, +N-more tail, http(s)-only links,
+    everything escaped."""
+    from functions.live_core import RECEIPTS_MAX, build_live_html
+
+    detail = _detail()
+    detail["sources"] = [
+        {
+            "title": f"Source {i} <b>bold</b>",
+            "url": f"https://example.org/{i}",
+            "source_name": "Example Org",
+            "date": "2026-07-01T00:00:00+00:00",
+        }
+        for i in range(RECEIPTS_MAX + 3)
+    ] + [{"title": "evil", "url": "javascript:alert(1)"}]
+    page = build_live_html(detail)
+    assert "The Receipts" in page
+    assert page.count('rel="noopener nofollow"') == RECEIPTS_MAX
+    assert "+ 3 more sources" in page
+    assert "javascript:alert" not in page
+    assert "<b>bold</b>" not in page and "&lt;b&gt;bold&lt;/b&gt;" in page
+    assert "Jul 1, 2026" in page
+
+
+def test_live_page_no_receipts_section_without_sources():
+    from functions.live_core import build_live_html
+
+    assert "The Receipts" not in build_live_html(_detail())

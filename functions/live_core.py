@@ -23,6 +23,10 @@ from isthisbs.content import mint_slug
 
 VID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
+#: Receipts shown on the interim page — a quick tweet-time read; the article
+#: shows config.SOURCES_SHOWN_MAX (10) and Lenz carries the full list.
+RECEIPTS_MAX = 6
+
 #: Keyless public read — the same endpoint the build's fetch layer uses.
 API_BASE = f"{SITE.lenz_home}/api/v1/verifications/"
 
@@ -53,6 +57,61 @@ def build_card_png(detail: dict) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def _datefmt(iso: str) -> str:
+    """``2026-07-22…`` → ``Jul 22, 2026``; anything unparseable renders empty."""
+    from datetime import datetime
+
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return ""
+    return f"{dt:%b} {dt.day}, {dt.year}"
+
+
+def _receipts_html(detail: dict) -> str:
+    """ "The Receipts" for the interim page — same escaping discipline as the
+    rest of the builder; http(s)-only source links, capped at RECEIPTS_MAX
+    with the article's "+N more on Lenz" pattern for the tail."""
+    sources = [
+        s
+        for s in (detail.get("sources") or [])
+        if isinstance(s, dict)
+        and str(s.get("url", "")).lower().startswith(("http://", "https://"))
+        and (s.get("title") or s.get("source_name"))
+    ]
+    if not sources:
+        return ""
+    items = []
+    for s in sources[:RECEIPTS_MAX]:
+        title = html.escape(str(s.get("title") or s.get("source_name")))
+        url = html.escape(str(s["url"]))
+        meta_bits = []
+        if s.get("source_name"):
+            meta_bits.append(html.escape(str(s["source_name"])))
+        date = _datefmt(s.get("date", ""))
+        if date:
+            meta_bits.append(date)
+        meta = (
+            f'<span class="rmeta">{" · ".join(meta_bits)}</span>' if meta_bits else ""
+        )
+        items.append(
+            f'<li><a href="{url}" rel="noopener nofollow" target="_blank">{title}</a>{meta}</li>'
+        )
+    more = ""
+    if len(sources) > RECEIPTS_MAX:
+        lenz_url = html.escape(
+            SITE.lenz_claim_url(str(detail.get("verification_id", "")))
+        )
+        more = (
+            f'<p class="rmore">+ {len(sources) - RECEIPTS_MAX} more sources — '
+            f'<a href="{lenz_url}" rel="noopener">see the full list on Lenz</a></p>'
+        )
+    return (
+        '<p class="kicker" style="margin-top:2rem">The Receipts</p>'
+        f'<ol class="receipts">{"".join(items)}</ol>{more}'
+    )
 
 
 def build_live_html(detail: dict) -> str:
@@ -90,6 +149,7 @@ def build_live_html(detail: dict) -> str:
     if warnings:
         items = "".join(f"<li>{w}</li>" for w in warnings)
         caveats_html = f'<p class="kicker" style="margin-top:2rem">Caveats</p><ul class="caveats">{items}</ul>'
+    receipts_html = _receipts_html(detail)
     og_image = f"{SITE.base_url}/og-live/{vid}.png"
     # The permanent article URL is fully computable from the API payload —
     # canonical there from minute zero, so search equity never splits.
@@ -131,6 +191,13 @@ def build_live_html(detail: dict) -> str:
     opacity:.65; margin-top:2.5rem; }}
   .caveats {{ margin:.5rem 0 0; padding-left:1.2em; }}
   .caveats li {{ margin-bottom:.5rem; opacity:.8; }}
+  .receipts {{ margin:.5rem 0 0; padding-left:1.4em; }}
+  .receipts li {{ margin-bottom:.75rem; }}
+  .receipts a {{ font-weight:600; }}
+  .rmeta {{ display:block; font-family: ui-monospace, Menlo, monospace;
+    font-size:.8125rem; opacity:.65; margin-top:.15rem; }}
+  .rmore {{ font-family: ui-monospace, Menlo, monospace; font-size:.8125rem;
+    opacity:.8; }}
   a {{ color: inherit; text-decoration: underline; text-decoration-color:#FFD23F;
     text-decoration-thickness:2px; text-underline-offset:3px; }}
 </style>
@@ -143,6 +210,7 @@ def build_live_html(detail: dict) -> str:
   <p class="pill"><b></b>{label} — Verdict: {key}</p>
   <p>{summary}</p>
   {caveats_html}
+  {receipts_html}
   <p><a href="{lenz_url}" rel="noopener">Read the full analysis on Lenz →</a></p>
   <p class="note">Fresh off the desk — the permanent article lands on
     <a href="/">IsThisBS?</a> within a day. This check was summoned by tagging
