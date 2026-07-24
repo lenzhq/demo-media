@@ -111,6 +111,10 @@ class Section:
     key: str  # URL segment + lowercase API ``domain``
     title: str
     blurb: str
+    #: One-line YMYL note rendered on this section's articles ("" = none).
+    #: Health/finance/legal readers may ACT on a verdict — the sitewide as-is
+    #: language lives on /privacy/, which they never see from an article.
+    disclaimer: str = ""
 
     @property
     def path(self) -> str:
@@ -122,6 +126,10 @@ _SECTION_LIST = [
         "health",
         "Health",
         "Medical claims, wellness fads, and what the evidence actually supports.",
+        disclaimer=(
+            "Health fact checks summarize published evidence — they are not "
+            "medical advice. For decisions about your health, talk to a clinician."
+        ),
     ),
     Section(
         "science",
@@ -137,6 +145,10 @@ _SECTION_LIST = [
         "finance",
         "Finance",
         "Money, markets, and economic claims — separated from the noise.",
+        disclaimer=(
+            "Finance fact checks verify economic claims — nothing here is "
+            "financial or investment advice."
+        ),
     ),
     Section(
         "tech", "Tech", "Claims about technology, AI, and the companies that build it."
@@ -147,7 +159,13 @@ _SECTION_LIST = [
         "What really happened — historical claims measured against the sources.",
     ),
     Section(
-        "legal", "Legal", "Laws, rights, and legal claims — what actually holds up."
+        "legal",
+        "Legal",
+        "Laws, rights, and legal claims — what actually holds up.",
+        disclaimer=(
+            "Legal fact checks verify public claims — they are not legal "
+            "advice for your situation."
+        ),
     ),
     Section("general", "General", "Everything else people repeat — checked."),
 ]

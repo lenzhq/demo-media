@@ -110,23 +110,17 @@
   {% endif %}
 </article>
 
-{% if related %}
-<section class="more-checks" data-pagefind-ignore aria-labelledby="more-h">
-  <h2 class="block-head" id="more-h">More Fact Checks</h2>
-  <div class="rail__list">
-    {% for rel in related %}
-    {{ card(rel, variant="row", heading="h3") }}
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
+{#- Provenance + meta-disclosure directly after the article content;
+    recirculation ("More Fact Checks") comes last, like every news site. -#}
 <aside class="attribution" data-pagefind-ignore>
   <p class="attribution__body">
     This check was produced by
     <a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">Lenz</a>,
     an independent fact-checking engine. IsThisBS presents the results.
   </p>
+  {% if check.section.disclaimer %}
+  <p class="attribution__disclaimer">{{ check.section.disclaimer }}</p>
+  {% endif %}
   <p><a class="readlink" href="{{ check.lenz_url }}" rel="noopener" target="_blank">Read the full analysis on Lenz ↗</a>
   <a class="attribution__cta attribution__cta--verify" href="{{ SITE.lenz_verify }}" rel="noopener">Fact check any claim yourself ↗</a>
   {#- Prefilled GitHub issue form (flag-a-check.yml): field ids in the query
@@ -142,4 +136,15 @@
   <a class="attribution__cta attribution__cta--discuss" href="{{ disc.url if disc else SITE.github_repo ~ '/discussions/new?category=general&title=' ~ ((check.claim[:70] ~ ' [' ~ check.verification_id ~ ']')|urlencode) ~ '&body=' ~ (('Claim: ' ~ check.claim ~ '\n\nVerdict: ' ~ check.verdict.bs_label ~ ' (' ~ check.verdict.key ~ ')\nArticle: ' ~ check.url ~ '\nFull analysis: ' ~ check.lenz_url ~ '\n\nMake your case below — links to evidence welcome.')|urlencode) }}" rel="noopener" target="_blank">Disagree with {{ check.verdict.bs_label }}? Make your case ↗</a>
   {% endif %}</p>
 </aside>
+
+{% if related %}
+<section class="more-checks" data-pagefind-ignore aria-labelledby="more-h">
+  <h2 class="block-head" id="more-h">More Fact Checks</h2>
+  <div class="rail__list">
+    {% for rel in related %}
+    {{ card(rel, variant="row", heading="h3") }}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}

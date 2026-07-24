@@ -277,3 +277,30 @@ def test_article_nonzero_counts_render_and_link(tmp_path, checks):
     assert "💬 3" in html
     assert "👎" not in html  # zero component hidden
     assert f"Disagree with {check.verdict.bs_label}?" not in html
+
+
+# --------------------------------------------------------------------------- #
+# YMYL disclaimers (health / finance / legal)
+# --------------------------------------------------------------------------- #
+
+
+def test_ymyl_sections_carry_inline_disclaimer(tmp_path, checks):
+    """Health, finance, and legal articles carry their one-line section
+    disclaimer; other sections carry none (the sitewide as-is language on
+    /privacy/ covers them)."""
+    render.render_site(checks, tmp_path)
+    ymyl = {"health", "finance", "legal"}
+    seen_ymyl = seen_other = 0
+    for check in checks:
+        html = _article_path(tmp_path, check).read_text()
+        section = check.section
+        if section.key in ymyl:
+            assert section.disclaimer, f"{section.key} has no disclaimer configured"
+            assert section.disclaimer in html, f"disclaimer missing on {check.path}"
+            seen_ymyl += 1
+        else:
+            assert "attribution__disclaimer" not in html, (
+                f"unexpected disclaimer on {check.path}"
+            )
+            seen_other += 1
+    assert seen_ymyl and seen_other, "fixture set must cover both kinds of section"

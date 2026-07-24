@@ -440,9 +440,23 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 
 .more-checks { max-width: var(--measure); margin: 0 auto var(--sp-8); }
 
-.attribution { max-width: var(--measure); margin: 0 auto; border: 1px solid var(--hairline);
+.attribution { max-width: var(--measure); margin: 0 auto var(--sp-8); border: 1px solid var(--hairline);
   border-left: 3px solid var(--accent); padding: var(--sp-4); background: var(--card); }
 .attribution__body { margin: 0 0 var(--sp-2); }
+/* The trailing CTA paragraph must not stack its own margin on the box
+   padding — bottom breathing room should equal the top's. */
+.attribution p:last-child { margin-bottom: 0; }
+/* YMYL section note (health/finance/legal) — same serif voice as the body
+   sentence above it (text reads serif; only ACTIONS speak mono), one step
+   smaller and ink-60 so it stays a quiet aside, not a banner. The soft
+   accent wash (#FFF6D9 ≈ 20% caution-yellow on card white; ink-60 on it is
+   6.65:1) is the site's "highlighter swipe" — note the caution, no shouting. */
+.attribution__disclaimer {
+  font-size: 0.9375rem; color: var(--ink-60);
+  background: #FFF6D9; border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3);
+  margin: 0 0 var(--sp-3); max-width: 40rem;
+}
 
 /* ---- About / prose / meter legend -------------------------------------- */
 .prose p, .prose li { max-width: var(--measure); }
