@@ -359,6 +359,16 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
   margin: var(--sp-4) 0; }
 .readlink { font-family: var(--font-mono); font-size: var(--fs-meta); text-transform: uppercase;
   letter-spacing: 0.06em; text-decoration: none; margin-right: var(--sp-6); }
+/* External-link arrow: ONE glyph, ONE size, everywhere. Every "↗" in the
+   templates is wrapped in this span so the arrow is locked to the mono/meta
+   readlink voice and can't inherit an oversized serif/body context (or the
+   emoji-font fallback) — which is exactly how the footer "@isthisbs on X"
+   link had drifted larger than its siblings. New external links must wrap
+   their arrow the same way. `font-variant-emoji: text` belt-and-suspenders
+   against emoji presentation on engines that default to it. */
+.exarrow { font-family: var(--font-mono); font-size: var(--fs-meta);
+  font-weight: 400; font-style: normal; font-variant-emoji: text;
+  line-height: 1; }
 .rail { border-left: 1px solid var(--hairline); padding-left: var(--sp-6); }
 @media (max-width: 60rem) { .rail { border-left: 0; padding-left: 0;
   border-top: 3px solid var(--ink); padding-top: var(--sp-4); } }
