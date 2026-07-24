@@ -94,7 +94,7 @@
     <div class="wrap folio__row">
       <span class="folio__date"><span class="folio__dow">{{ build_date.strftime('%A') }}, </span>{{ build_date|datefmt }}</span>
       <span class="folio__tagline">{{ SITE.tagline }}</span>
-      <a class="folio__chip" href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">POWERED BY LENZ ↗</a>
+      <a class="folio__chip" href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">POWERED BY LENZ <span class="exarrow">↗</span></a>
     </div>
   </div>
 
@@ -158,7 +158,7 @@
           <li><a href="/bs-files/">The BS Files</a></li>
           <li><a href="/checks-out/">Checks Out</a></li>
           <li><a href="/about/">About</a></li>
-          <li><a href="{{ SITE.x_replies_url }}" rel="noopener" target="_blank">@isthisbs on X ↗</a></li>
+          <li><a href="{{ SITE.x_replies_url }}" rel="noopener" target="_blank">@isthisbs on X <span class="exarrow">↗</span></a></li>
           <li><a href="/privacy/">Privacy &amp; Terms</a></li>
           <li><a href="/search/">Search</a></li>
           <li><a href="/feed.xml">RSS</a></li>
@@ -174,9 +174,9 @@
           presents those results — it does not itself adjudicate claims.
         </p>
         <ul class="footer__links">
-          <li><a href="{{ SITE.lenz_verify }}" rel="noopener">Fact check anything ↗</a></li>
-          <li><a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">lenz.io ↗</a></li>
-          <li><a href="{{ SITE.lenz_api_docs }}" rel="noopener" target="_blank">API docs ↗</a></li>
+          <li><a href="{{ SITE.lenz_verify }}" rel="noopener">Fact check anything <span class="exarrow">↗</span></a></li>
+          <li><a href="{{ SITE.lenz_home }}" rel="noopener" target="_blank">lenz.io <span class="exarrow">↗</span></a></li>
+          <li><a href="{{ SITE.lenz_api_docs }}" rel="noopener" target="_blank">API docs <span class="exarrow">↗</span></a></li>
         </ul>
       </div>
     </div>
