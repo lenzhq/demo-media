@@ -130,7 +130,7 @@ test("desktop: home lead/rail grid holds (lead wider than rail)", async ({ page 
   expect(lead!.width).toBeGreaterThan(rail!.width);
 });
 
-test("footer columns: side-by-side on desktop, stacked on mobile", async ({ page }) => {
+test("footer columns: one row on desktop, 2+1 on mobile", async ({ page }) => {
   await page.setViewportSize(VIEWPORTS.desktop);
   await page.goto("/");
   const desktopTops = await page
@@ -139,10 +139,13 @@ test("footer columns: side-by-side on desktop, stacked on mobile", async ({ page
   expect(new Set(desktopTops).size, "footer columns not on one row at 1280").toBe(1);
   await page.setViewportSize(VIEWPORTS.mobile);
   await page.goto("/");
+  // Sections + Site share a row (narrow lists fit side by side); the wide
+  // disclosure column takes its own full-width row below.
   const mobileTops = await page
     .locator(".footer__col")
     .evaluateAll((cols) => cols.map((c) => Math.round(c.getBoundingClientRect().top)));
-  expect(new Set(mobileTops).size, "footer columns not stacked at 375").toBe(mobileTops.length);
+  expect(mobileTops[0], "Sections and Site should share a row at 375").toBe(mobileTops[1]);
+  expect(mobileTops[2], "wide column should sit below the link lists").toBeGreaterThan(mobileTops[0]);
 });
 
 // --------------------------------------------------------------------------

@@ -496,7 +496,13 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .footer { border-top: 3px solid var(--ink); margin-top: var(--sp-16); }
 .footer__cols { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: var(--sp-8);
   padding: var(--sp-12) var(--gutter) var(--sp-8); }
-@media (max-width: 48rem) { .footer__cols { grid-template-columns: 1fr; gap: var(--sp-8); } }
+/* Mobile: the two narrow link lists (Sections, Site) fit side by side —
+   stacking them burned a whole screen of scrolling. The wide disclosure
+   column takes its own full-width row below. */
+@media (max-width: 48rem) {
+  .footer__cols { grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
+  .footer__col--wide { grid-column: 1 / -1; }
+}
 .footer__head { font-size: 0.8125rem; font-family: var(--font-mono); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-60);
   margin: 0 0 var(--sp-3); }
