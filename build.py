@@ -79,7 +79,15 @@ def _make_client():
     """
     from lenz_io import Lenz
 
-    return Lenz(base_url=os.environ.get("LENZ_BASE_URL"))
+    from isthisbs import __version__
+
+    # Self-identify so this demo's build traffic is attributable (and can be
+    # filtered from Lenz's internal signals) rather than looking like a generic
+    # Python SDK user. Mirrors the live claim function's ``isthisbs-claimlive``.
+    return Lenz(
+        base_url=os.environ.get("LENZ_BASE_URL"),
+        user_agent=f"isthisbs-media/{__version__}",
+    )
 
 
 # --------------------------------------------------------------------------- #
