@@ -35,7 +35,10 @@ class Site:
     language: str = "en"
     # Attribution targets (the "Powered by Lenz" disclosure).
     lenz_home: str = "https://lenz.io"
-    x_url: str = "https://x.com/isthisbs"  # the desk's X account / reply bot
+    x_url: str = "https://x.com/isthisbs"  # canonical profile (JSON-LD sameAs)
+    #: Human-facing links go to the Replies tab — the bot only replies, so
+    #: the main profile tab reads as an empty account.
+    x_replies_url: str = "https://x.com/isthisbs/with_replies"
     lenz_api_docs: str = "https://lenz.io/developers"
     lenz_verify: str = "https://lenz.io/verify"  # "Fact check anything" CTA target
     lenz_sdk_python: str = "https://pypi.org/project/lenz-io/"

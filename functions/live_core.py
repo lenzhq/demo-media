@@ -146,7 +146,7 @@ def build_live_html(detail: dict) -> str:
   <p><a href="{lenz_url}" rel="noopener">Read the full analysis on Lenz →</a></p>
   <p class="note">Fresh off the desk — the permanent article lands on
     <a href="/">IsThisBS?</a> within a day. This check was summoned by tagging
-    <a href="https://x.com/isthisbs" rel="noopener">@isthisbs</a> on X —
+    <a href="https://x.com/isthisbs/with_replies" rel="noopener">@isthisbs</a> on X —
     tag it under any post to fact-check it.</p>
 </main>
 </body>
