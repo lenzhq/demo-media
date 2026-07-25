@@ -216,5 +216,7 @@ HOME_SECTION_SIZE = 4  # cards per section block on home
 HOME_STRIP_SIZE = 4  # BS Files / Checks Out strips on home
 FEED_SIZE = 50  # site-wide Atom feed entries
 SECTION_FEED_SIZE = 30  # per-section Atom feed entries
+LLMS_LATEST_COUNT = 15  # newest checks linked from llms.txt (curated sample)
+LLMS_FULL_SOURCES_MAX = 3  # sources per claim in llms-full.txt; rest via LENZ link
 NEWS_SITEMAP_HOURS = 48  # Google News sitemap window
 RELATED_LIMIT = 6  # related checks fetched per claim (server caps at 10)
