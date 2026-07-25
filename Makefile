@@ -7,7 +7,7 @@
 
 help:  ## Show this help
 	@echo "IsThisBS? — make targets:"
-	@echo "  install    Install the package with dev + search extras (editable)"
+	@echo "  install    Install the package with dev + search extras (editable) + git hooks"
 	@echo "  build      Full static build into dist/ (keyless)"
 	@echo "  smoke      Fast 2-page build to sanity-check the pipeline"
 	@echo "  serve      Serve dist/ locally at http://localhost:8080"
@@ -18,8 +18,9 @@ help:  ## Show this help
 	@echo "  clean      Remove dist/"
 	@echo "  distclean  Remove dist/ and the incremental .cache/"
 
-install:  ## Install with dev + search extras (editable)
+install:  ## Install with dev + search extras (editable) + git hooks
 	pip install -e ".[dev,search]"
+	git config core.hooksPath githooks
 
 build:  ## Full static build into dist/ (keyless)
 	python build.py

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-push gate: mirror the CI "Lint & test (offline)" job exactly
+# (ruff check, ruff format --check, pytest -q) so a push never bounces
+# off CI for something that takes ~2s to catch locally.
+#
+# Activated per-clone via:  git config core.hooksPath githooks
+# (done by `make install`). Bypass in an emergency with `git push --no-verify`.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Prefer the project venv so the hook works from GUIs/IDEs where the
+# venv isn't on PATH; fall back to whatever the shell provides.
+if [ -x .venv/bin/ruff ]; then
+    RUFF=.venv/bin/ruff
+    PYTEST=.venv/bin/pytest
+else
+    RUFF=ruff
+    PYTEST=pytest
+fi
+
+echo "pre-push: ruff check ."
+"$RUFF" check .
+echo "pre-push: ruff format --check ."
+"$RUFF" format --check .
+echo "pre-push: pytest -q"
+"$PYTEST" -q
