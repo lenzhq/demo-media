@@ -612,8 +612,7 @@ def _write_llms_full_txt(checks: list[Check], out_dir: Path) -> None:
             # source list one hop away.
             block.append("SOURCES:")
             block += [
-                f"  - {source.url}"
-                for source in check.sources[:LLMS_FULL_SOURCES_MAX]
+                f"  - {source.url}" for source in check.sources[:LLMS_FULL_SOURCES_MAX]
             ]
         blocks.append("\n".join(block))
     (out_dir / "llms-full.txt").write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
