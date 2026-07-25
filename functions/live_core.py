@@ -166,6 +166,9 @@ def build_live_html(detail: dict) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — {html.escape(SITE.name)}</title>
 <meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+<meta name="theme-color" content="#FFD23F">
 <link rel="canonical" href="{canonical}">
 <meta name="description" content="{description}">
 <meta property="og:type" content="article">
@@ -180,6 +183,17 @@ def build_live_html(detail: dict) -> str:
     font-family: ui-serif, 'Iowan Old Style', Palatino, Georgia, serif; }}
   .wrap {{ max-width: 42rem; margin: 0 auto; padding: 48px 24px; }}
   .bar {{ height:12px; background:#FFD23F; }}
+  .masthead {{ border-bottom: 3px solid #141310; }}
+  .masthead__inner {{ max-width: 42rem; margin: 0 auto; padding: 16px 24px; }}
+  .wordmark {{ display:inline-flex; align-items:center; gap:.14em;
+    font-weight:800; font-size:1.75rem; line-height:1; letter-spacing:-.02em;
+    text-decoration:none; color:#141310; }}
+  .wordmark .mk {{ display:inline-flex; align-items:baseline; background:#171717;
+    border-radius:.16em; padding:.06em .16em .1em;
+    font-family:-apple-system,'Helvetica Neue','Segoe UI',Arial,sans-serif;
+    font-weight:900; letter-spacing:-.02em; }}
+  .wordmark .bs {{ color:#FBF9F2; }}
+  .wordmark .q {{ color:#FFD23F; }}
   .kicker {{ font-family: ui-monospace, Menlo, monospace; font-size:.6875rem;
     letter-spacing:.08em; text-transform:uppercase; opacity:.65; }}
   h1 {{ font-size: clamp(1.6rem, 5vw, 2.4rem); line-height:1.15; font-weight:800; }}
@@ -205,6 +219,11 @@ def build_live_html(detail: dict) -> str:
 </head>
 <body>
 <div class="bar"></div>
+<header class="masthead">
+  <div class="masthead__inner">
+    <a class="wordmark" href="/" aria-label="{html.escape(SITE.name)} — home"><span>IsThis</span><span class="mk" aria-hidden="true"><span class="bs">BS</span><span class="q">?</span></span></a>
+  </div>
+</header>
 <main class="wrap">
   <p class="kicker">The Claim</p>
   <h1>“{claim}”</h1>
@@ -229,6 +248,9 @@ def build_notfound_html() -> str:
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>404 — IsThisBS?</title><meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+<meta name="theme-color" content="#FFD23F">
 <style>
   body { margin:0; background:#FAF7F0; color:#141310; text-align:center;
     font-family: ui-serif, 'Iowan Old Style', Palatino, Georgia, serif; }

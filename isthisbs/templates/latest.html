@@ -8,11 +8,11 @@
 <nav class="crumbs" aria-label="Breadcrumb">
   {% for name, path in breadcrumb %}
     {% if loop.last %}<span aria-current="page">{{ name|upper }}</span>
-    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">›</span>{% endif %}
+    {% else %}<a href="{{ path }}">{{ name|upper }}</a><span class="crumbs__sep" aria-hidden="true">·</span>{% endif %}
   {% endfor %}
 </nav>
 
-<header class="page-head">
+<header class="page-head page-head--flush">
   <p class="kicker">{{ kicker }}</p>
   <h1 class="page-title">{{ heading }}</h1>
 </header>

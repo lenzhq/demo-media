@@ -241,10 +241,19 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 }
 .crumbs a { text-decoration: none; }
 .crumbs__sep { margin: 0 0.5em; }
+/* On articles the body is a centered 42rem measure; ride the breadcrumb on the
+   same measure so it aligns with the column instead of hanging at the outer
+   grid edge (visual-QA finding 1). */
+.article-page .crumbs { max-width: var(--measure); margin-inline: auto; }
 
 /* ---- Page head --------------------------------------------------------- */
 .page-head { margin-bottom: var(--sp-8); padding-bottom: var(--sp-4);
   border-bottom: 1px solid var(--hairline); }
+/* Chip-less listing pages (Latest, Topic, BS Files, Checks Out) have no filter
+   row to fill the space under the head. Drop the head's own rule so the feed's
+   first-card border is the single divider — not an empty double-hairline band
+   (visual-QA finding 2). Section hubs keep the border; their chips fill it. */
+.page-head--flush { padding-bottom: 0; border-bottom: 0; margin-bottom: var(--sp-6); }
 .page-title { font-size: var(--fs-hero); font-weight: 800; letter-spacing: -0.015em;
   line-height: 1.08; }
 .page-standfirst { font-size: var(--fs-standfirst); font-weight: 600; line-height: 1.5;
@@ -475,7 +484,11 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .prose code { font-family: var(--font-mono); font-size: 0.9em; background: var(--card);
   padding: 1px 5px; border: 1px solid var(--hairline); border-radius: var(--radius); }
 .meter-legend { list-style: none; margin: 0 0 var(--sp-4); padding: 0; }
-.meter-legend__row { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+/* Fixed pill column (7rem > the 98px widest pill) + justify-items:start keeps
+   each pill its own width but starts every "Verdict: …" at the same x, so the
+   canon labels align into a column (visual-QA finding 3). */
+.meter-legend__row { display: grid; grid-template-columns: 7rem 1fr;
+  justify-items: start; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .meter-legend__canon { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--ink-60); }
 
 /* ---- Search (Pagefind → our tokens) ------------------------------------ */
@@ -498,7 +511,7 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 /* ---- House ad (X bot self-promo, home page) ---------------------------- */
 .house-ad {
   border: 1px solid var(--hairline); border-left: 3px solid var(--accent);
-  background: var(--card); padding: var(--sp-4);
+  background: var(--card); padding: var(--sp-3) var(--sp-4);
   /* No bottom margin — the footer's own 64px top margin is the gap;
      stacking both read as a hole in the page. */
   margin: var(--sp-12) 0 0;
@@ -511,7 +524,7 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 /* Banner sentence, not a prose column: no measure cap (the 40rem cap made
    the last word wrap alone); text-wrap:pretty kills widows when it does
    wrap at narrow widths. */
-.house-ad__body { margin: 0 0 var(--sp-3); text-wrap: pretty; }
+.house-ad__body { margin: 0 0 var(--sp-2); text-wrap: pretty; line-height: 1.45; }
 .house-ad__links { margin: 0; }
 .house-ad__links .readlink { margin-right: var(--sp-6); }
 
@@ -534,6 +547,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 @media (max-width: 48rem) {
   .footer__cols { grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
   .footer__col--wide { grid-column: 1 / -1; }
+  /* Tighter page end on phones: the desktop 64px footer gap + 32px main pad
+     read as a hole under short mobile content (visual-QA finding 4). */
+  .footer { margin-top: var(--sp-8); }
+  main.wrap { padding-bottom: var(--sp-6); }
 }
 .footer__head { font-size: 0.8125rem; font-family: var(--font-mono); font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-60);

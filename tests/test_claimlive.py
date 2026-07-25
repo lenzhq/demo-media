@@ -159,3 +159,24 @@ def test_live_page_no_receipts_section_without_sources():
     from functions.live_core import build_live_html
 
     assert "The Receipts" not in build_live_html(_detail())
+
+
+def test_live_page_has_favicon_and_home_nav():
+    """The /c/ interim page carries the brand favicon (tab icon) and a wordmark
+    masthead linking home — it was reachable only via a buried footnote before
+    (visual-QA finding 6)."""
+    from functions.live_core import build_live_html
+
+    page = build_live_html(_detail())
+    assert '<link rel="icon" href="/favicon.svg"' in page
+    assert "apple-touch-icon" in page
+    assert 'class="masthead"' in page
+    # a real home link in the masthead, not just the trailing footnote
+    assert 'class="wordmark" href="/"' in page
+
+
+def test_notfound_page_has_favicon():
+    """The function 404 gets the tab icon too (visual-QA finding 6)."""
+    from functions.live_core import build_notfound_html
+
+    assert '<link rel="icon" href="/favicon.svg"' in build_notfound_html()
