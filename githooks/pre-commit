@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Auto-fix lint and formatting on staged Python files before commit.
+# Blocks the commit only if unfixable lint errors remain — the fixable
+# ones are fixed and re-staged silently.
+#
+# Bypass for an emergency: git commit --no-verify
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+# Prefer the project venv so the hook works from GUIs/IDEs where the
+# venv isn't on PATH; fall back to whatever the shell provides.
+RUFF=ruff
+[ -x .venv/bin/ruff ] && RUFF=.venv/bin/ruff
+
+# Staged files (Added, Copied, Modified only — not deleted).
+PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+[ -z "${PY_FILES}" ] && exit 0
+
+echo "pre-commit: fixing Python files with ruff..."
+echo "${PY_FILES}" | xargs "$RUFF" check --fix --quiet 2>/dev/null || true
+echo "${PY_FILES}" | xargs "$RUFF" format --quiet 2>/dev/null || true
+echo "${PY_FILES}" | xargs git add
+
+# Block if unfixable errors remain.
+if ! echo "${PY_FILES}" | xargs "$RUFF" check --quiet; then
+    echo "pre-commit: BLOCKED — ruff check failed on staged files"
+    exit 1
+fi

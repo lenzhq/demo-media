@@ -6,7 +6,12 @@ from datetime import UTC, datetime, timedelta
 from xml.etree import ElementTree as ET
 
 from isthisbs import content, seo
-from isthisbs.config import SITE, VERDICTS
+from isthisbs.config import (
+    LLMS_FULL_SOURCES_MAX,
+    LLMS_LATEST_COUNT,
+    SITE,
+    VERDICTS,
+)
 
 _SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 _NEWS = "{http://www.google.com/schemas/sitemap-news/0.9}"
@@ -199,6 +204,25 @@ def test_llms_txt_has_sections(tmp_path, checks):
     assert "Health" in text
 
 
+def test_llms_txt_links_latest_checks_and_full_index(tmp_path, checks):
+    seo.write_assets(checks, tmp_path)
+    text = (tmp_path / "llms.txt").read_text()
+    # A concrete sample of article links, newest first.
+    assert "## Latest checks" in text
+    for check in checks[:LLMS_LATEST_COUNT]:
+        assert check.url in text
+    # llms-full.txt is discoverable from the curated map.
+    assert "## Optional" in text
+    assert f"{SITE.base_url}/llms-full.txt" in text
+
+
+def test_llms_txt_escapes_brackets_in_claim_links(tmp_path, make_detail):
+    check = _one(make_detail, claim="The [redacted] report says 2+2=5")
+    seo.write_assets([check], tmp_path)
+    text = (tmp_path / "llms.txt").read_text()
+    assert f"- [The \\[redacted\\] report says 2+2=5]({check.url})" in text
+
+
 def test_llms_full_txt_lists_every_claim(tmp_path, checks):
     seo.write_assets(checks, tmp_path)
     text = (tmp_path / "llms-full.txt").read_text()
@@ -208,6 +232,25 @@ def test_llms_full_txt_lists_every_claim(tmp_path, checks):
         assert check.claim in text
         # Dual-labelled: canonical key present alongside the BS label.
         assert check.verdict.key in text
+
+
+def test_llms_full_txt_caps_sources(tmp_path, make_detail):
+    many = [
+        {
+            "source_name": f"Outlet {i}",
+            "title": f"Report {i}",
+            "url": f"https://example.com/src-{i}",
+            "snippet": "Snippet.",
+            "date": "2026-07-01",
+        }
+        for i in range(LLMS_FULL_SOURCES_MAX + 3)
+    ]
+    check = _one(make_detail, sources=many)
+    seo.write_assets([check], tmp_path)
+    text = (tmp_path / "llms-full.txt").read_text()
+    for i in range(LLMS_FULL_SOURCES_MAX):
+        assert f"https://example.com/src-{i}" in text
+    assert f"https://example.com/src-{LLMS_FULL_SOURCES_MAX}" not in text
 
 
 def test_sitemap_pages_includes_pagination(tmp_path, make_detail):

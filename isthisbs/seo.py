@@ -31,12 +31,13 @@ from xml.etree import ElementTree as ET
 
 from .config import (
     FEED_SIZE,
+    LLMS_FULL_SOURCES_MAX,
+    LLMS_LATEST_COUNT,
     NEWS_SITEMAP_HOURS,
     PAGE_SIZE,
     SECTION_FEED_SIZE,
     SECTIONS,
     SITE,
-    SOURCES_SHOWN_MAX,
 )
 from .content import Check, collections, group_by_entity, group_by_section
 
@@ -500,6 +501,11 @@ def _write_feeds(checks: list[Check], out_dir: Path) -> None:
 # -- llms.txt / llms-full.txt ---------------------------------------------- #
 
 
+def _md_link_text(text: str) -> str:
+    """Claims are free text — escape the brackets that would break a link."""
+    return text.replace("[", "\\[").replace("]", "\\]")
+
+
 def _write_llms_txt(checks: list[Check], out_dir: Path) -> None:
     """Curated Markdown site map per the llms.txt convention.
 
@@ -546,6 +552,28 @@ def _write_llms_txt(checks: list[Check], out_dir: Path) -> None:
         f"- [Search]({SITE.base_url}/search/): full-text search.",
         f"- [About]({SITE.base_url}/about/): how the checks work + the API.",
         "",
+        "## Latest checks",
+        "",
+    ]
+    # A small, always-fresh sample of actual articles so an agent that reads
+    # only this file has concrete, citable URLs — the exhaustive index is
+    # llms-full.txt under Optional.
+    for check in checks[:LLMS_LATEST_COUNT]:
+        lines.append(
+            f"- [{_md_link_text(check.claim)}]({check.url}): {check.verdict.key}"
+        )
+    lines += [
+        "",
+        "## Optional",
+        "",
+        (
+            f"- [Full claim index]({SITE.base_url}/llms-full.txt): every check "
+            "as plain text — claim, verdict, summary, top sources. One file, "
+            "built for bulk ingestion."
+        ),
+        f"- [Atom feed]({SITE.base_url}/feed.xml): the {FEED_SIZE} newest checks.",
+        f"- [Sitemap index]({SITE.base_url}/sitemap.xml): every URL on the site.",
+        "",
         "## Built on Lenz",
         "",
         (
@@ -579,12 +607,12 @@ def _write_llms_full_txt(checks: list[Check], out_dir: Path) -> None:
             f"LENZ: {check.lenz_url}",
         ]
         if check.sources:
-            # Cap like the article page does (SOURCES_SHOWN_MAX) — 40 URLs per
-            # claim would bloat the file without adding ingestion value; the
-            # LENZ line above carries the full source list.
+            # Sources are ~half the file at 10/claim; the top few receipts
+            # carry the trust signal, and the LENZ line above links the full
+            # source list one hop away.
             block.append("SOURCES:")
             block += [
-                f"  - {source.url}" for source in check.sources[:SOURCES_SHOWN_MAX]
+                f"  - {source.url}" for source in check.sources[:LLMS_FULL_SOURCES_MAX]
             ]
         blocks.append("\n".join(block))
     (out_dir / "llms-full.txt").write_text("\n\n".join(blocks) + "\n", encoding="utf-8")

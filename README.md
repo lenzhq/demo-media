@@ -23,7 +23,7 @@ No credentials. No API key. The Lenz catalog is read keyless.
 ```bash
 git clone https://github.com/lenzhq/demo-media.git
 cd demo-media   # repo name; the product/package is `isthisbs`
-make install     # pip install -e ".[dev,search]"
+make install     # pip install -e ".[dev,search]" + enables the pre-push hook
 make smoke       # fast 2-page keyless build into dist/
 make serve       # http://localhost:8080
 ```
