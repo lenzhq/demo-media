@@ -1,27 +1,100 @@
-#!/bin/sh
-# Pre-push gate: mirror the CI "Lint & test (offline)" job exactly
-# (ruff check, ruff format --check, pytest -q) so a push never bounces
-# off CI for something that takes ~2s to catch locally.
+#!/usr/bin/env bash
+# Pre-push = the pre-PR gate. The Playwright layout suite does NOT run in
+# GitHub on PR/push (deploy-time only — see .github/workflows/build-deploy.yml),
+# so this hook is where it runs before a PR is opened. ruff + pytest ALSO run
+# in CI (ci.yml) — the hook run is the fast local mirror (~2s offline).
 #
-# Activated per-clone via:  git config core.hooksPath githooks
-# (done by `make install`). Bypass in an emergency with `git push --no-verify`.
-set -e
+# Order:
+#   1. ruff check + format --check   (instant; repo-wide — pre-commit only
+#      covers staged files, so this is the exact ci.yml mirror)
+#   2. pytest -q                     (~1.5s offline)
+#   3. offline dist/ rebuild + Playwright layout suite (Chromium + WebKit) —
+#      only when layout-relevant files changed vs origin/main
+#
+# Bypass: `git push --no-verify` skips everything; `SKIP_PYTEST=1` /
+# `SKIP_E2E=1` skip just that suite (for WIP branch pushes).
+# E2E log: tmp/pre-push-playwright.log
+set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
 # Prefer the project venv so the hook works from GUIs/IDEs where the
 # venv isn't on PATH; fall back to whatever the shell provides.
-if [ -x .venv/bin/ruff ]; then
-    RUFF=.venv/bin/ruff
-    PYTEST=.venv/bin/pytest
-else
-    RUFF=ruff
-    PYTEST=pytest
+RUFF=ruff PYTEST=pytest PYTHON=python3
+[ -x .venv/bin/ruff ] && RUFF=.venv/bin/ruff
+[ -x .venv/bin/pytest ] && PYTEST=.venv/bin/pytest
+[ -x .venv/bin/python ] && PYTHON=.venv/bin/python
+
+# ── 1. Lint + format (the ci.yml "Lint & test" gate, minus pytest) ──
+echo "pre-push: ruff check + format check..."
+"$RUFF" check .
+"$RUFF" format --check .
+
+# ── Determine what changed vs origin/main so we only run each suite when
+# it can be affected. If we can't resolve the base, run everything —
+# conservative is correct for a gate.
+_RUN_PYTEST=true
+_RUN_E2E=true
+if git rev-parse --verify --quiet origin/main >/dev/null; then
+    _BASE="$(git merge-base origin/main HEAD)"
+    _CHANGED="$(git diff --name-only "${_BASE}" HEAD)"
+    if ! echo "${_CHANGED}" | grep -qE '(\.py$|^pyproject\.toml$)'; then
+        _RUN_PYTEST=false
+    fi
+    # E2E is relevant when anything the browser suite exercises changed:
+    # templates/static (the pages), render/config/seo/ogimage (what gets
+    # written into dist/), build.py (the pipeline), or the suite itself.
+    if ! echo "${_CHANGED}" | grep -qE '^(isthisbs/(templates/|static/|render\.py|config\.py|seo\.py|ogimage\.py)|e2e/|build\.py)'; then
+        _RUN_E2E=false
+    fi
 fi
 
-echo "pre-push: ruff check ."
-"$RUFF" check .
-echo "pre-push: ruff format --check ."
-"$RUFF" format --check .
-echo "pre-push: pytest -q"
-"$PYTEST" -q
+if [ "${SKIP_PYTEST:-0}" = "1" ]; then
+    echo "pre-push: SKIP_PYTEST=1 — skipping pytest"
+    _RUN_PYTEST=false
+elif [ "${_RUN_PYTEST}" = false ]; then
+    echo "pre-push: no Python changes — skipping pytest"
+fi
+if [ "${SKIP_E2E:-0}" = "1" ]; then
+    echo "pre-push: SKIP_E2E=1 — skipping layout E2E"
+    _RUN_E2E=false
+elif [ "${_RUN_E2E}" = false ]; then
+    echo "pre-push: no layout-relevant changes — skipping layout E2E"
+fi
+
+# ── 2. pytest ──
+if [ "${_RUN_PYTEST}" = true ]; then
+    echo "pre-push: pytest -q..."
+    "$PYTEST" -q
+fi
+
+# ── 3. Layout E2E over a fresh offline dist/ build ──
+if [ "${_RUN_E2E}" = true ]; then
+    if [ ! -d .cache/claims ]; then
+        # Fresh clone: no fetch cache, so an offline build is impossible.
+        # Deploy-time CI still runs the full suite; don't force a network
+        # sync from a hook.
+        echo "pre-push: WARNING — no .cache/ (run 'make build' once); skipping layout E2E"
+    elif [ ! -x e2e/node_modules/.bin/playwright ]; then
+        echo "pre-push: BLOCKED — layout-relevant changes but Playwright isn't installed."
+        echo "pre-push: run 'make test-layout' once (installs + runs), or SKIP_E2E=1 to push anyway."
+        exit 1
+    else
+        mkdir -p tmp
+        echo "pre-push: rebuilding dist/ from cache (offline)..."
+        "$PYTHON" build.py --skip-fetch --skip-og --skip-search >tmp/pre-push-build.log 2>&1 || {
+            echo "pre-push: BLOCKED — offline build failed; tail of tmp/pre-push-build.log:"
+            tail -20 tmp/pre-push-build.log
+            exit 1
+        }
+        echo "pre-push: Playwright layout suite (Chromium + WebKit)... log: tmp/pre-push-playwright.log"
+        if ! (cd e2e && npx playwright test) >tmp/pre-push-playwright.log 2>&1; then
+            echo "pre-push: BLOCKED — layout E2E failed; tail of tmp/pre-push-playwright.log:"
+            tail -30 tmp/pre-push-playwright.log
+            exit 1
+        fi
+        echo "pre-push: layout E2E passed"
+    fi
+fi
+
+echo "pre-push: OK"
