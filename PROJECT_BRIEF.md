@@ -66,7 +66,7 @@ The atom: one verified claim = one article. Four axes: **sections** (primary nav
 - **`/search/`** — Pagefind UI (lazy-loaded assets).
 - **`/about/`** — what IsThisBS is; methodology (how Lenz verifies: multiple frontier models independently research and assess each claim against fresh sources; disagreements surfaced); the disclosure; the developer pitch (repo, API docs, SDK links); contact = GitHub issues.
 - **`404.html`** — "This page is BS — it doesn't exist." (wit allowed in interface).
-- **Plumbing:** `robots.txt` (allow all incl. AI crawlers, sitemap pointers), `sitemap.xml` (index → articles/sections/topics children) + Google-News-style sitemap (recent), Atom feeds (site `/feed.xml` latest 50 + per-section latest 30), `llms.txt` (curated site map for AI engines) + `llms-full.txt` (flat claim+verdict+summary index), OG images `/og/{verification_id}.png` (1200×630, claim + BS Meter in brand style, Pillow-generated).
+- **Plumbing:** `robots.txt` (allow all incl. AI crawlers, sitemap pointers), `sitemap.xml` (index → articles/sections/topics children) + news sitemap (Google's `sitemap-news/0.9` namespace, full current tag set, hard 48h window per Google's two-day rule — empty `urlset` on quiet catalog days is expected, not a bug), Atom feeds (site `/feed.xml` latest 50 + per-section latest 30), `llms.txt` (curated site map for AI engines) + `llms-full.txt` (flat claim+verdict+summary index), OG images `/og/{verification_id}.png` (1200×630, claim + BS Meter in brand style, Pillow-generated).
 
 **English-only v1**: build filters `language == "en"` (configurable `BUILD_LANGS`). Mixed-language nav is bad UX; i18n later.
 
@@ -152,7 +152,7 @@ CI runs ruff + pytest on every PR/push. Real-fetch smoke (`--max-pages 2`) is a 
 3. **Stack** — Python + Jinja2 static build on `lenz-io`; own CSS; Pagefind; Pillow OG cards. Reference implementation of the Python SDK.
 4. **Hosting** — Firebase Hosting, separate `isthisbs-prod` GCP project, GH Actions + WIF, daily rebuild.
 5. **Article depth** — media + light context (claim, meter, summary, sources, warnings, split note); omit debates/panelist internals; link to lenz.io for depth.
-6. **ClaimReview** — site emits its own (author = Lenz, publisher = IsThisBS); accept cross-domain duplication with lenz.io; AEO priority.
+6. **ClaimReview** — site emits its own (author = Lenz, publisher = IsThisBS); accept cross-domain duplication with lenz.io; **AEO priority, not SEO**. Google retired ClaimReview rich results in Search (June 2025 cleanup — its doc now says support is being "phased out in Google Search," but "remains supported by the Factcheck Explorer Tool"). We keep emitting it: genre-correct, still feeds Fact Check Explorer, and it's the durable machine-readable verdict for LLMs/answer engines. Don't budget Search work against it — `NewsArticle` is the Search-facing node.
 7. **English-only v1**; `Error` verdicts excluded; entity pages need ≥2 claims; keyless forever on reads.
 8. **API/SDK extensions** only where broadly useful to all callers; both SDKs at parity; keyless public-read; out of this repo's scope.
 
@@ -160,7 +160,7 @@ CI runs ruff + pytest on every PR/push. Real-fetch smoke (`--max-pages 2`) is a 
 
 - `python build.py` runs clean from a fresh checkout **with no credentials**, emits `dist/` with home, 8 section hubs, entity pages (≥2 threshold), articles, latest, both collections, search, about, 404, OG images, Atom feeds, `sitemap.xml` + news sitemap, `robots.txt`, `llms.txt`, `llms-full.txt`.
 - Incremental cache: second build refetches only changed/new claims; pagination covers the full catalog.
-- An article validates in Google's Rich Results Test (ClaimReview) + schema.org validator; exactly one `<h1>` per page; Lighthouse SEO ≥ 95.
+- An article validates in Google's Rich Results Test (**Article/NewsArticle** — ClaimReview no longer reports there, by design; validate it in the schema.org validator instead) + schema.org validator; exactly one `<h1>` per page; Lighthouse SEO ≥ 95.
 - BS Meter renders correctly for all 5 verdicts (label + canonical verdict text, accessible without color); `split` shows the divided note; no debate/panelist internals anywhere.
 - Powered-by-Lenz disclosure + backlink sitewide and per article; every article links to `lenz.io/c/{verification_id}`.
 - Zero secrets in repo or CI (WIF only); `pytest` green offline; ruff clean; scheduled Action builds and deploys.
