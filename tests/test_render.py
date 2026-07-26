@@ -318,3 +318,66 @@ def test_x_bot_promotion_surfaces(tmp_path, checks):
     # footer link is sitewide — check an article too
     article = _article_path(tmp_path, checks[0]).read_text()
     assert "https://x.com/isthisbs" in article
+
+
+# --------------------------------------------------------------------------- #
+# Meta description sentence extraction
+# --------------------------------------------------------------------------- #
+
+# Second paragraph only exists to clear ARTICLE_MIN_SUMMARY_CHARS; the meta
+# description is built from the first paragraph alone.
+_FILLER_PARA = (
+    "Additional context follows in later paragraphs, which exist purely to "
+    "clear the editorial minimum-summary length and never appear in the "
+    "meta description under test."
+)
+
+
+def _desc_for(make_detail, first_para: str) -> str:
+    doc = make_detail(executive_summary=f"{first_para}\n\n{_FILLER_PARA}")
+    (check,) = content.build_checks([doc])
+    return render._meta_description(check)
+
+
+def test_meta_description_survives_us_abbreviation(make_detail):
+    desc = _desc_for(
+        make_detail,
+        "The U.S. Senate never voted on the measure, and the bill died in committee.",
+    )
+    assert "U.S. Senate never voted" in desc
+    assert "bill died in committee" in desc
+
+
+def test_meta_description_survives_honorific_and_initials(make_detail):
+    desc = _desc_for(
+        make_detail,
+        "Dr. Jonas E. Salk announced the trial results to reporters in April 1955.",
+    )
+    assert "announced the trial results" in desc
+
+
+def test_meta_description_survives_eg_abbreviation(make_detail):
+    desc = _desc_for(
+        make_detail,
+        "The post misquotes several agencies, e.g. NASA and NOAA, on sea level rise.",
+    )
+    assert "NASA and NOAA, on sea level rise" in desc
+
+
+def test_meta_description_extends_past_stub_first_sentence(make_detail):
+    desc = _desc_for(
+        make_detail,
+        "The claim is false. Independent audits from three labs found no "
+        "such compound.",
+    )
+    assert "Independent audits from three labs" in desc
+
+
+def test_meta_description_still_stops_at_real_boundary(make_detail):
+    desc = _desc_for(
+        make_detail,
+        "The figure overstates measured warming roughly threefold since 1990. "
+        "Second sentence should not leak into the description.",
+    )
+    assert "threefold since 1990." in desc
+    assert "Second sentence" not in desc
