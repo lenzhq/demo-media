@@ -22,6 +22,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import shutil
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -219,6 +220,75 @@ def _truncate(text: str, limit: int) -> str:
     return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:—- ") + "…"
 
 
+# Tokens that end with a period mid-sentence — never a sentence boundary.
+_ABBREVIATIONS = frozenset(
+    {
+        "al",
+        "approx",
+        "co",
+        "dr",
+        "e.g",
+        "est",
+        "etc",
+        "gen",
+        "gov",
+        "i.e",
+        "inc",
+        "jr",
+        "lt",
+        "ltd",
+        "mr",
+        "mrs",
+        "ms",
+        "mt",
+        "prof",
+        "rep",
+        "rev",
+        "sen",
+        "sr",
+        "st",
+        "u.k",
+        "u.n",
+        "u.s",
+        "vs",
+    }
+)
+# Abbreviations only when a number follows ("No. 5", "Fig. 3", "pp. 12-14").
+_NUMERIC_ABBREVIATIONS = frozenset({"art", "fig", "figs", "no", "pp", "sec"})
+
+# Candidate boundary: terminator, optional closing quotes/brackets, whitespace.
+_BOUNDARY_RE = re.compile(r"(?<=[.!?])([\"')\]”’]*)\s+")
+_SENTENCE_OPENERS = "\"'(“‘"
+
+
+def _first_sentences(text: str, min_chars: int = 40) -> str:
+    """The shortest sentence prefix of ``text`` at least ``min_chars`` long.
+
+    A naive ``split(". ")`` chops on abbreviations ("The U.S. Senate…" →
+    "The U.S") and strands stub openers ("The claim is false.") — both make
+    broken SERP snippets. This walks real boundaries instead: a terminator
+    followed by whitespace and a capital/digit/quote, where the token before
+    it is not a known abbreviation or a single-letter initial. Boundaries
+    inside the ``min_chars`` budget are skipped so a stub first sentence
+    pulls in the next one. Falls back to the whole text when no qualifying
+    boundary exists (``_meta_description``'s truncation bounds it anyway).
+    """
+    for match in _BOUNDARY_RE.finditer(text):
+        nxt = text[match.end() : match.end() + 1]
+        if not (nxt.isupper() or nxt.isdigit() or nxt in _SENTENCE_OPENERS):
+            continue
+        token = text[: match.start()].rsplit(None, 1)[-1]
+        norm = token.rstrip(".!?").lstrip(_SENTENCE_OPENERS).lower()
+        if norm in _ABBREVIATIONS or (len(norm) == 1 and norm.isalpha()):
+            continue
+        if norm in _NUMERIC_ABBREVIATIONS and nxt.isdigit():
+            continue
+        end = match.end(1)  # keep a closing quote with its sentence
+        if end >= min_chars:
+            return text[:end]
+    return text
+
+
 def _meta_description(check: Check) -> str:
     """Verdict-first meta description with a receipts hook (SEO round 2).
 
@@ -227,8 +297,11 @@ def _meta_description(check: Check) -> str:
     """
     paras = check.summary_paragraphs
     body = paras[0] if paras else SITE.description
-    # First sentence of the summary (fall back to the trimmed paragraph).
-    sentence = body.split(". ")[0].rstrip(".") + "."
+    # Leading sentence(s) of the summary, abbreviation-aware (min_chars
+    # mirrors the truncation floor below).
+    sentence = _first_sentences(body)
+    if sentence and sentence[-1] not in ".!?…\"'”’":
+        sentence += "."
     prefix = f"Verdict: {check.verdict.key}. "
     suffix = (
         f" Checked against {len(check.sources)} independent sources."
