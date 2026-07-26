@@ -5,10 +5,16 @@ search engines *and* answer engines (LLMs):
 
 1. **JSON-LD builders** — pure functions returning ``dict`` graphs that
    ``render.py`` serialises into ``<script type="application/ld+json">``
-   tags. The headline act is ``claim_review``: schema.org ``ClaimReview`` is
-   the structured-data type Google surfaces in fact-check rich results and
-   that answer engines read to attribute a verdict. The cardinal rule is that
-   the machine-readable ``alternateName`` carries the **canonical API verdict**
+   tags. Two types carry the load, and they aim at *different* surfaces:
+   ``claim_review`` is the answer-engine/AEO play, ``news_article`` is what
+   earns Google Search rich results. Google retired ClaimReview rich results
+   in Search (June 2025 structured-data cleanup) — its doc now reads "We're
+   phasing out support for ``ClaimReview`` markup in Google Search. However,
+   this markup remains supported by the Factcheck Explorer Tool." We keep
+   emitting it: it is the genre-correct markup, it still feeds Fact Check
+   Explorer, and it is the durable machine-readable verdict for LLMs. Just
+   don't budget Search work against it. The cardinal rule is unchanged — the
+   machine-readable ``alternateName`` carries the **canonical API verdict**
    (``"False"``), never the playful BS-Meter label — the BS labels are a
    presentation-layer flourish and must not leak into structured data.
 
@@ -121,6 +127,11 @@ def _trim(text: str, limit: int) -> str:
 def claim_review(check: Check, *, base_url: str) -> dict:
     """schema.org ``ClaimReview`` for one article — the AEO centrepiece.
 
+    "AEO centrepiece" is precise, not a synonym for SEO: since June 2025 this
+    type produces **no Google Search rich result** (see the module docstring).
+    It still pays off in Fact Check Explorer and as the verdict answer engines
+    read, which is why it stays. ``news_article`` is the Search-facing node.
+
     Mapping decisions worth knowing:
     - ``reviewRating.alternateName`` is the **canonical** verdict key
       (``"False"``), NOT the BS label — machine surfaces stay canonical.
@@ -171,6 +182,13 @@ def news_article(check: Check, *, base_url: str) -> dict:
     Complements the ClaimReview: search engines treat the page as a dated news
     item (author Lenz, publisher IsThisBS) with the OG card as its image and
     the entity subjects as ``mentions`` (Wikidata ``sameAs`` when known).
+
+    Since ClaimReview lost its rich result, this is the node carrying Search
+    rich-result eligibility — treat it as load-bearing. Google declares *no
+    required properties* for Article/NewsArticle and no markup requirement for
+    Top Stories at all, so everything here is "recommended": we emit the full
+    recommended set (headline capped at Google's 110 chars, both dates, image,
+    author, publisher) because recommended-but-absent is the only way to lose.
     """
     node: dict = {
         "@context": SCHEMA,
@@ -391,7 +409,21 @@ def _write_sitemap_pages(checks: list[Check], out_dir: Path, today: str) -> None
 def _write_sitemap_news(checks: list[Check], out_dir: Path) -> None:
     """Google-News sitemap: only articles inside the recent window, cap 1000.
 
-    Still emits a valid (empty) ``urlset`` when nothing is recent enough.
+    The spec is Google's ``sitemap-news/0.9`` namespace extension to the
+    sitemaps.org protocol, and the tag set below is *complete* as of the
+    current doc: ``news:publication`` (``name`` + ``language``),
+    ``news:publication_date``, ``news:title``. Nothing else is left to add —
+    the older optional tags (``news:genres``, ``news:keywords``,
+    ``news:access``, ``news:geo_locations``, ``news:stock_tickers``,
+    ``news:original_publication_date``) were dropped by Google and their
+    absence here is deliberate; don't reintroduce them.
+
+    ``NEWS_SITEMAP_HOURS`` is not a tuning knob: Google says "only include
+    recent URLs for articles that were created in the last two days", and it
+    ignores anything older, so widening the window buys nothing.
+
+    Still emits a valid (empty) ``urlset`` when nothing is recent enough —
+    expected on days the upstream catalog publishes nothing, which is normal.
     """
     ET.register_namespace("", _SM_NS)
     ET.register_namespace("news", _NEWS_NS)
