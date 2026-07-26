@@ -1,10 +1,16 @@
-# Offline CI: lint + tests on every push and PR.
+# Offline CI: lint + tests on every PR and on main.
 # The test suite never touches the network (fake SDK fixtures), so no
 # credentials, services, or Lenz API access are involved.
+#
+# push is main-only: a bare `push:` would double-run CI on every PR push
+# (push + pull_request events land in different concurrency groups, so
+# they don't dedupe). Branches without an open PR get no cloud CI — the
+# pre-push hook (githooks/pre-push) runs the same gate locally.
 name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 # One in-flight run per ref; new pushes cancel the previous run.
