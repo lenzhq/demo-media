@@ -196,16 +196,32 @@ def test_ga_absent_by_default(tmp_path, checks, monkeypatch):
 
 
 def test_ga_present_when_configured(tmp_path, checks, monkeypatch):
-    """GA_MEASUREMENT_ID set → async gtag snippet with that id, on every page."""
+    """GA_MEASUREMENT_ID set → deferred gtag loader with that id, every page."""
     monkeypatch.setenv("GA_MEASUREMENT_ID", "G-TESTID123")
     out = tmp_path / "dist-ga-on"
     render.render_site(checks, out)
     home = (out / "index.html").read_text(encoding="utf-8")
     assert "googletagmanager.com/gtag/js?id=G-TESTID123" in home
     assert "gtag('config', 'G-TESTID123')" in home
-    assert '<script async src="https://www.googletagmanager.com' in home
+    assert "addEventListener('load', loadGtag" in home
     notfound = (out / "404.html").read_text(encoding="utf-8")
     assert "G-TESTID123" in notfound
+
+
+def test_ga_never_fetched_during_initial_render(tmp_path, checks, monkeypatch):
+    """gtag.js is ~166 KB — it must never be a tag the parser fetches up front.
+
+    Guards the regression this file's header promises ("NO third-party
+    requests"): the tag is injected from script on load/first interaction, so
+    no markup <script src> and no preconnect may reach the document.
+    """
+    monkeypatch.setenv("GA_MEASUREMENT_ID", "G-TESTID123")
+    out = tmp_path / "dist-ga-defer"
+    render.render_site(checks, out)
+    for page in ("index.html", "404.html"):
+        html = (out / page).read_text(encoding="utf-8")
+        assert '<script async src="https://www.googletagmanager.com' not in html
+        assert 'rel="preconnect" href="https://www.googletagmanager.com"' not in html
 
 
 def test_article_serp_contract(tmp_path, checks):

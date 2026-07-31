@@ -73,16 +73,37 @@
   {% endfor %}
   {% block head_extra %}{% endblock %}
 {% if GA_MEASUREMENT_ID %}
-  <link rel="preconnect" href="https://www.googletagmanager.com">
-  {#- Google Analytics (GA4). Async so it never blocks rendering; emitted only
-      when GA_MEASUREMENT_ID is set at build time (PR previews build without
-      it, so preview traffic never pollutes the property). -#}
-  <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}"></script>
+  {#- Google Analytics (GA4). gtag.js is ~166 KB — 14x the weight of this
+      entire site — so it is fetched once the page has loaded (or on first
+      interaction, whichever lands first) rather than during the initial
+      render. `async` alone was not enough: it still
+      competed for bandwidth and main thread before first paint. dataLayer
+      queues the hits in the meantime, so nothing is lost. The preconnect was
+      dropped deliberately — it only warmed a connection we no longer want
+      opened early. Emitted only when GA_MEASUREMENT_ID is set at build time
+      (PR previews build without it, so preview traffic never pollutes the
+      property). -#}
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', '{{ GA_MEASUREMENT_ID }}');
+    // Fetch the tag on whichever comes first: window load, or the first real
+    // interaction (someone scrolling a slow connection shouldn't go uncounted
+    // while the rest of the page settles). Guarded so it only ever runs once.
+    var gaRequested = false;
+    function loadGtag() {
+      if (gaRequested) return;
+      gaRequested = true;
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}';
+      document.head.appendChild(s);
+    }
+    addEventListener('load', loadGtag, { once: true });
+    ['pointerdown', 'keydown', 'touchstart'].forEach(function (evt) {
+      addEventListener(evt, loadGtag, { once: true, passive: true });
+    });
   </script>
 {% endif %}
 </head>
