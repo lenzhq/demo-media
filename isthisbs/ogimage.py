@@ -34,7 +34,7 @@ from .config import Verdict
 logger = logging.getLogger(__name__)
 
 # Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "5"  # v5: verdict row raised clear of X's title-pill overlay
+TEMPLATE_VERSION = "6"  # v6: site card uses the real wordmark lockup
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -45,6 +45,24 @@ ACCENT = "#FFD23F"
 TOP_BAR_H = 12
 MARGIN = 72
 
+# Wordmark lockup — mirrors `.wordmark*` in static/css/site.css so the share
+# card and the masthead read as the same mark. Values are em fractions of the
+# lockup font size, lifted from the computed styles of the live header.
+CHIP_BG = "#171717"  # .wordmark__mark background
+CHIP_BS = "#FBF9F2"  # .wordmark__bs
+CHIP_Q = ACCENT  # .wordmark__q
+LOCKUP_TRACKING = -0.02  # letter-spacing: -0.02em
+LOCKUP_GAP = 0.14  # .wordmark { gap: 0.14em }
+CHIP_PAD_X, CHIP_PAD_TOP, CHIP_PAD_BOTTOM = 0.16, 0.06, 0.10  # chip padding
+CHIP_RADIUS = 0.16  # border-radius: 0.16em
+
+#: Published filename of the site-default card. Article cards are named for
+#: their verification id; this one carries the brand instead of "site" so it is
+#: identifiable wherever it gets saved or inspected.
+SITE_CARD_NAME = "isthisbs.png"
+#: Retained so pre-v6 links keep resolving — see ``generate``.
+_LEGACY_SITE_CARD_NAME = "site.png"
+
 # Static TTFs verified present on the Google Fonts GitHub mirrors. Fraunces
 # ships variable in google/fonts, so its *static* Black instance comes from the
 # upstream googlefonts/fraunces repo (default branch: master).
@@ -52,14 +70,26 @@ _FRAUNCES_BASE = (
     "https://raw.githubusercontent.com/googlefonts/fraunces/master/fonts/static/ttf"
 )
 _PLEX_BASE = "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono"
+_INTER_URL = (
+    "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/"
+    "Inter%5Bopsz,wght%5D.ttf"
+)
 _FONT_SOURCES: dict[str, str] = {
     "Fraunces72pt-Black.ttf": f"{_FRAUNCES_BASE}/Fraunces72pt-Black.ttf",
     "IBMPlexMono-SemiBold.ttf": f"{_PLEX_BASE}/IBMPlexMono-SemiBold.ttf",
     "IBMPlexMono-Regular.ttf": f"{_PLEX_BASE}/IBMPlexMono-Regular.ttf",
+    "Inter-Variable.ttf": _INTER_URL,
 }
 _DISPLAY = "Fraunces72pt-Black.ttf"
 _MONO = "IBMPlexMono-SemiBold.ttf"
 _MONO_LIGHT = "IBMPlexMono-Regular.ttf"
+# The masthead chip is set in the system UI sans at weight 900 — SF Pro Black on
+# Apple platforms. Inter is that face's closest open relative: instanced at
+# opsz 32 / wght 900 its "BS?" measures within 2% of the live mark, so the card
+# and the header read as one lockup. Embedding it (rather than reaching for a
+# system font) keeps the card byte-identical on every build host.
+_SANS_BLACK = "Inter-Variable.ttf"
+_SANS_BLACK_AXES = [32.0, 900.0]  # (Optical size, Weight) — see get_variation_axes
 
 # Module-level font state, lazily populated by the first render.
 _cache_dir: Path | None = None
@@ -107,6 +137,14 @@ def _font(name: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     if path and path.exists():
         try:
             font = ImageFont.truetype(str(path), size)
+            if name == _SANS_BLACK:
+                # Inter ships variable-only; pin the Black display instance.
+                # A FreeType build without variation support would leave the
+                # chip at Regular — visibly wrong, but never a failed build.
+                try:
+                    font.set_variation_by_axes(_SANS_BLACK_AXES)
+                except (OSError, AttributeError) as exc:
+                    logger.warning("Could not instance %s Black (%s)", name, exc)
         except OSError:
             # A corrupt/truncated cached TTF (interrupted download) must take
             # the fallback path, not crash the build. Remove it so the next
@@ -207,6 +245,28 @@ def _draw_tracked(draw, pos, text, font, fill, tracking) -> float:
     return x - pos[0]
 
 
+def _tracked_width(font, text: str, tracking: float) -> float:
+    """Measured width of tracked ``text`` — no trailing letter-space, which is
+    what CSS does and what the lockup needs to center honestly."""
+    if not text:
+        return 0.0
+    return sum(_text_width(font, ch) for ch in text) + tracking * (len(text) - 1)
+
+
+def _draw_tracked_baseline(draw, x, baseline, text, font, fill, tracking) -> float:
+    """``_draw_tracked`` anchored on the baseline (``anchor="ls"``).
+
+    The lockup aligns the serif and the chip's sans on a shared baseline — the
+    same thing ``align-items: baseline`` does in the masthead — so both faces
+    must be positioned by baseline, not by their differing ascent boxes.
+    """
+    start = x
+    for ch in text:
+        draw.text((x, baseline), ch, font=font, fill=fill, anchor="ls")
+        x += _text_width(font, ch) + tracking
+    return x - start - tracking if text else 0.0
+
+
 # --------------------------------------------------------------------------- #
 # Card renderers (pure — given loaded fonts)
 # --------------------------------------------------------------------------- #
@@ -286,6 +346,51 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
     return img
 
 
+def draw_wordmark(draw, center_x: float, baseline: float, size: int) -> None:
+    """Draw the IsThisBS? lockup centered on ``center_x``, sat on ``baseline``.
+
+    A pixel translation of the masthead's `.wordmark` rule: serif "IsThis" in
+    ink, then the @isthisbs mark — a dark rounded chip with "BS" reversed out
+    in paper white and a caution-yellow "?" — both faces sharing one baseline.
+    There is no strikethrough and no yellow highlight; those belonged to an
+    older mark and made the card contradict the site it links to.
+    """
+    serif = _font(_DISPLAY, size)
+    sans = _font(_SANS_BLACK, size)
+    tracking = LOCKUP_TRACKING * size
+
+    ink_w = _tracked_width(serif, "IsThis", tracking)
+    bs_w = _tracked_width(sans, "BS", tracking)
+    q_w = _tracked_width(sans, "?", tracking)
+    # "BS" and "?" are adjacent inline spans: one shared letter-space joins them.
+    mark_text_w = bs_w + tracking + q_w
+    pad_x = CHIP_PAD_X * size
+    chip_w = mark_text_w + 2 * pad_x
+    total = ink_w + LOCKUP_GAP * size + chip_w
+
+    x = center_x - total / 2
+    _draw_tracked_baseline(draw, x, baseline, "IsThis", serif, INK, tracking)
+    x += ink_w + LOCKUP_GAP * size
+
+    # Chip box: a line-height:1 box around the sans, plus the CSS padding.
+    ascent, descent = sans.getmetrics()
+    half_leading = (size - (ascent + descent)) / 2
+    box_top = baseline - ascent - half_leading
+    chip = [
+        x,
+        box_top - CHIP_PAD_TOP * size,
+        x + chip_w,
+        box_top + size + CHIP_PAD_BOTTOM * size,
+    ]
+    draw.rounded_rectangle(chip, radius=CHIP_RADIUS * size, fill=CHIP_BG)
+
+    tx = x + pad_x
+    _draw_tracked_baseline(draw, tx, baseline, "BS", sans, CHIP_BS, tracking)
+    _draw_tracked_baseline(
+        draw, tx + bs_w + tracking, baseline, "?", sans, CHIP_Q, tracking
+    )
+
+
 def render_site_card() -> Image.Image:
     """The site-default card for non-article pages: wordmark + tagline."""
     _load_fonts_if_needed()
@@ -293,27 +398,7 @@ def render_site_card() -> Image.Image:
     draw = ImageDraw.Draw(img)
     draw.rectangle([0, 0, CARD_W, TOP_BAR_H], fill=ACCENT)
 
-    word_font = _font(_DISPLAY, 132)
-    # Wordmark: "IsThis" + "BS" reversed out of a yellow block + "?".
-    part1, part2, part3 = "IsThis", "BS", "?"
-    w1 = _text_width(word_font, part1)
-    w2 = _text_width(word_font, part2)
-    w3 = _text_width(word_font, part3)
-    pad = 16
-    total = w1 + pad + w2 + pad + w3
-    x = (CARD_W - total) / 2
-    y = 210
-    draw.text((x, y), part1, font=word_font, fill=INK)
-    x += w1 + pad
-    # Yellow block behind "BS" with an ink strikethrough.
-    block_top = y + 18
-    block_bottom = y + 150
-    draw.rectangle([x - 8, block_top, x + w2 + 8, block_bottom], fill=ACCENT)
-    draw.text((x, y), part2, font=word_font, fill=INK)
-    strike_y = (block_top + block_bottom) / 2
-    draw.line([x - 4, strike_y, x + w2 + 4, strike_y], fill=INK, width=6)
-    x += w2 + pad
-    draw.text((x, y), part3, font=word_font, fill=INK)
+    draw_wordmark(draw, CARD_W / 2, baseline=330, size=128)
 
     tag_font = _font(_MONO, 30)
     tagline = "THE CLAIMS DESK · RECEIPTS INCLUDED"
@@ -368,6 +453,12 @@ def copy_cached(cache_dir: Path, out_dir: Path) -> int:
         public = png.stem.rsplit("-", 1)[0] + ".png" if "-" in png.stem else png.name
         shutil.copyfile(png, dest / public)
         copied += 1
+        if public == _LEGACY_SITE_CARD_NAME:
+            # The site card is cached under its old "site-" prefix but ships
+            # under both names; skip-og builds must publish the one the meta
+            # tags actually reference, not just the legacy alias.
+            shutil.copyfile(png, dest / SITE_CARD_NAME)
+            copied += 1
     return copied
 
 
@@ -407,7 +498,12 @@ def generate(checks: list, cache_dir: Path, out_dir: Path) -> int:
         render_site_card().save(site_cache, "PNG")
         rendered += 1
     _prune_variants(og_cache, "site", site_cache.name)
-    shutil.copyfile(site_cache, og_out / "site.png")
+    shutil.copyfile(site_cache, og_out / SITE_CARD_NAME)
+    # Legacy alias: the card shipped as site.png until the v6 relayout. Social
+    # scrapers key their caches on the image URL, so publishing under a new
+    # name is what forces them to re-fetch — but anything already pointing at
+    # the old path (a scraped card, an external embed) must not 404.
+    shutil.copyfile(site_cache, og_out / _LEGACY_SITE_CARD_NAME)
 
     logger.info("OG cards: %d newly rendered, %d total", rendered, len(checks) + 1)
     return rendered

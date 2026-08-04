@@ -76,9 +76,13 @@ def test_generate_writes_cards_and_site(tmp_path, make_detail):
         card = out_dir / "og" / f"{check.verification_id}.png"
         assert card.is_file()
         assert Image.open(card).size == (1200, 630)
-    site = out_dir / "og" / "site.png"
+    site = out_dir / "og" / ogimage.SITE_CARD_NAME
     assert site.is_file()
     assert Image.open(site).size == (1200, 630)
+    # The pre-v6 path stays published so already-scraped cards don't 404.
+    legacy = out_dir / "og" / "site.png"
+    assert legacy.is_file()
+    assert legacy.read_bytes() == site.read_bytes()
 
 
 def test_generate_is_incremental(tmp_path, make_detail):
@@ -89,6 +93,28 @@ def test_generate_is_incremental(tmp_path, make_detail):
     second = ogimage.generate(checks, cache_dir, out_dir)
     assert first == len(checks) + 1
     assert second == 0  # nothing changed → nothing re-rendered
+
+
+def test_copy_cached_republishes_both_site_paths(tmp_path, make_detail):
+    """``--skip-og`` must still publish the path the meta tags point at.
+
+    The site card is cached under its pre-v6 ``site-`` prefix, so a naive
+    stem-to-name mapping would ship only the legacy alias and 404 every
+    og:image URL on a skip-og rebuild.
+    """
+    checks = _checks(make_detail)
+    cache_dir = tmp_path / "cache"
+    ogimage.generate(checks, cache_dir, tmp_path / "out")
+
+    fresh = tmp_path / "skipog"
+    copied = ogimage.copy_cached(cache_dir, fresh)
+    site = fresh / "og" / ogimage.SITE_CARD_NAME
+    legacy = fresh / "og" / "site.png"
+    assert site.is_file() and legacy.is_file()
+    assert site.read_bytes() == legacy.read_bytes()
+    for check in checks:
+        assert (fresh / "og" / f"{check.verification_id}.png").is_file()
+    assert copied == len(checks) + 2  # every card, plus the site card twice
 
 
 def test_generate_content_key_is_deterministic():
