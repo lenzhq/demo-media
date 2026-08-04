@@ -35,7 +35,7 @@
   <meta property="og:site_name" content="{{ SITE.name }}">
   <meta property="og:type" content="{{ og_type|default('website') }}">
   <meta property="og:url" content="{{ SITE.base_url }}{{ canonical_path }}">
-  <meta property="og:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/site.png') }}">
+  <meta property="og:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/isthisbs.png') }}">
   {% if og_type == 'article' and check is defined %}
   <meta property="article:published_time" content="{{ check.created_at }}">
   {% if check.modified_at %}<meta property="article:modified_time" content="{{ check.modified_at }}">{% endif %}
@@ -50,7 +50,7 @@
   <meta name="twitter:site" content="{{ SITE.twitter_handle }}">
   <meta name="twitter:title" content="{{ page_title }}">
   <meta name="twitter:description" content="{{ meta_description }}">
-  <meta name="twitter:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/site.png') }}">
+  <meta name="twitter:image" content="{{ SITE.base_url }}{{ og_image_path|default('/og/isthisbs.png') }}">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">

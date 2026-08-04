@@ -87,7 +87,8 @@ def test_skip_fetch_full_pipeline_offline(tmp_path, make_detail, write_cache, of
     assert (out_dir / "robots.txt").is_file()
     assert (out_dir / "sitemap.xml").is_file()
     assert (out_dir / "llms.txt").is_file()
-    assert (out_dir / "og" / "site.png").is_file()
+    assert (out_dir / "og" / "isthisbs.png").is_file()
+    assert (out_dir / "og" / "site.png").is_file()  # legacy alias
 
 
 def test_skip_fetch_empty_cache_exits_nonzero(tmp_path, offline):
