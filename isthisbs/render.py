@@ -385,7 +385,7 @@ def _render_articles(
         breadcrumb = [
             ("Home", "/"),
             (check.section.title, check.section.path),
-            (_truncate(check.headline, 60), check.path),
+            (check.headline, check.path),
         ]
         html = template.render(
             nav_active=check.section.key,
