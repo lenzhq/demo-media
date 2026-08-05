@@ -387,11 +387,33 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
   margin: var(--sp-12) 0; }
 @media (max-width: 48rem) { .section-blocks { grid-template-columns: 1fr; gap: var(--sp-8); } }
 
-/* claim-quote — signals "a claim under examination, not our assertion" */
+/* claim-quote — signals "a claim under examination, not our assertion".
+   With finding-first headlines this treatment lives on the claim exhibit
+   (claim block, pre-backfill fallback H1s), never on a finding. */
 .claim-quote { position: relative; }
 .claim-quote::before { content: "\201C"; }
 .claim-quote::after { content: "\201D"; }
 .claim-quote::before, .claim-quote::after { color: var(--ink-60); font-weight: 800; }
+
+/* claim block — the checked claim + BS meter bound as one exhibit under a
+   finding headline (invariant 1: the verdict never appears without the claim
+   adjacent). Used on articles and the home lead. */
+.claim-block { border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  padding: var(--sp-4) 0; margin-bottom: var(--sp-8); }
+.claim-block > .kicker { margin: 0 0 var(--sp-2); }
+.claim-block__claim { font-size: var(--fs-standfirst); font-weight: 600; line-height: 1.5;
+  margin: 0 0 var(--sp-4); }
+.claim-block .article__verdict { border: 0; padding: 0; margin-bottom: 0; }
+.lead__claim { margin-bottom: var(--sp-4); }
+
+/* card claim line — mono metadata: CLAIM label, quoted claim, pill inline
+   (the pill may never sit alone under the finding). */
+.check-card__claim { font-family: var(--font-mono); font-size: var(--fs-meta);
+  color: var(--ink-60); margin: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.check-card__claim-label { font-size: var(--fs-label); text-transform: uppercase;
+  letter-spacing: 0.08em; }
+.check-card__claim q { quotes: "\201C" "\201D"; }
 
 /* ---- Entity cloud ------------------------------------------------------ */
 .cloud { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3) var(--sp-4);

@@ -165,20 +165,20 @@ def test_news_sitemap_honors_48h_window(tmp_path, make_detail):
     recent = now - timedelta(hours=1)
     old = now - timedelta(hours=72)
     docs = [
-        make_detail(claim="recent claim", created_at=recent.isoformat()),
-        make_detail(claim="old claim", created_at=old.isoformat()),
+        make_detail(key_finding="Recent finding.", created_at=recent.isoformat()),
+        make_detail(key_finding="Old finding.", created_at=old.isoformat()),
     ]
     checks = content.build_checks(docs)
     seo.write_assets(checks, tmp_path)
     root = ET.parse(tmp_path / "sitemap-news.xml").getroot()
     titles = [el.text for el in root.iter(f"{_NEWS}title")]
-    assert "recent claim" in titles
-    assert "old claim" not in titles
+    assert "Recent finding." in titles
+    assert "Old finding." not in titles
 
 
 def test_atom_feed_wellformed_and_escaped(tmp_path, make_detail):
     nasty = 'Tom & Jerry said "2 < 3 > 1" — is <this> BS?'
-    check = _one(make_detail, claim=nasty)
+    check = _one(make_detail, claim=nasty, key_finding=nasty)
     seo.write_assets([check], tmp_path)
     root = ET.parse(tmp_path / "feed.xml").getroot()  # raises if malformed
     titles = [el.text for el in root.iter(f"{_ATOM}title")]
@@ -217,7 +217,7 @@ def test_llms_txt_links_latest_checks_and_full_index(tmp_path, checks):
 
 
 def test_llms_txt_escapes_brackets_in_claim_links(tmp_path, make_detail):
-    check = _one(make_detail, claim="The [redacted] report says 2+2=5")
+    check = _one(make_detail, key_finding="The [redacted] report says 2+2=5")
     seo.write_assets([check], tmp_path)
     text = (tmp_path / "llms.txt").read_text()
     assert f"- [The \\[redacted\\] report says 2+2=5]({check.url})" in text

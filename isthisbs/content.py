@@ -31,6 +31,7 @@ from .config import (
     VERDICTS,
     Section,
     Verdict,
+    og_content_key,
     section_for_domain,
 )
 
@@ -124,6 +125,7 @@ class Check:
     modified_at: str
     language: str
     section: Section
+    key_finding: str = ""  # one-sentence established fact ('' pre-backfill)
     entities: tuple[Entity, ...] = ()
     warnings: tuple[str, ...] = ()
     sources: tuple[Source, ...] = ()
@@ -136,6 +138,20 @@ class Check:
     @property
     def verdict(self) -> Verdict:
         return VERDICTS[self.verdict_key]
+
+    @property
+    def has_finding(self) -> bool:
+        return bool(self.key_finding)
+
+    @property
+    def headline(self) -> str:
+        """The editorial headline every display surface uses: the key finding
+        (our reporting, asserted). Checks without one never publish (the
+        build.py gate skips them), so the claim fallback here is model-level
+        safety for direct consumers — the live ``/c/`` function mirrors it.
+        Machine-canonical surfaces (ClaimReview ``claimReviewed``, slugs,
+        dispute links) keep using ``claim``."""
+        return self.key_finding or self.claim
 
     @property
     def slug(self) -> str:
@@ -151,7 +167,14 @@ class Check:
 
     @property
     def og_path(self) -> str:
-        return f"/og/{self.verification_id}.png"
+        """Content-addressed public card path (see config.og_content_key).
+
+        The hash makes card changes propagate through social scrape caches,
+        which key on the URL; the un-hashed ``/og/{vid}.png`` is still
+        published as a legacy copy so already-scraped cards keep resolving.
+        """
+        key = og_content_key(self.headline)
+        return f"/og/{self.verification_id}-{key}.png"
 
     @property
     def lenz_url(self) -> str:
@@ -245,6 +268,7 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
         verdict_key=verdict,
         lenz_score=d.get("lenz_score"),
         executive_summary=(d.get("executive_summary") or "").strip(),
+        key_finding=(d.get("key_finding") or "").strip(),
         created_at=d.get("created_at") or "",
         modified_at=d.get("modified_at") or "",
         language=language,

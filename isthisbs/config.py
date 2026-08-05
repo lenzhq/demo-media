@@ -7,6 +7,7 @@ can import it freely (templates receive these objects as Jinja globals).
 
 from __future__ import annotations
 
+import hashlib
 import os
 from dataclasses import dataclass, field
 
@@ -207,6 +208,27 @@ ARTICLE_MIN_SOURCES = 2  # cited sources required to publish a check
 ARTICLE_MIN_SUMMARY_CHARS = 200  # catches broken/empty summaries only
 LEAD_MIN_SOURCES = 3  # the home lead slot wants a well-receipted check
 SOURCES_SHOWN_MAX = 10  # receipts rendered on an article; rest link to Lenz
+
+# --------------------------------------------------------------------------- #
+# OG card content-addressing (shared by content.py and ogimage.py)
+# --------------------------------------------------------------------------- #
+
+#: Bump when the card layout changes so every card re-renders AND gets a new
+#: public URL (social scrapers cache by URL — see ogimage.py).
+OG_TEMPLATE_VERSION = "7"  # v7: finding-first card (no claim, no verdict row)
+
+
+def og_content_key(text: str) -> str:
+    """Content hash naming an OG card, in cache and in its public URL.
+
+    Deterministic across rebuilds: the key covers exactly the inputs that
+    change the pixels — the rendered text (the key finding) and the template
+    version. Lives here (pure stdlib) so ``content.py`` can compute public
+    paths without importing Pillow through ``ogimage``.
+    """
+    raw = f"{text}\x00{OG_TEMPLATE_VERSION}"
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
 
 PAGE_SIZE = 20  # cards per page on section/latest/topic feeds
 COLLECTION_SIZE = 40  # items in /bs-files/ and /checks-out/

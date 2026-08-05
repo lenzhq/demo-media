@@ -14,7 +14,7 @@ Deliberately **not** hosted on `lenz.io` or a subdomain — protects the "Lenz =
 
 An automated fact-check publication — a small "newsroom" — where **every article is one verified claim** (verdict + reasoning + cited sources) pulled from the public Lenz catalog. Content is screened upstream by Lenz; no additional editorial/moderation layer. Built as a **static site regenerated on a schedule**: fast, near-free to host, near-zero maintenance.
 
-**Editorial selection — show what a reader needs, not the audit trail.** Render: the claim (headline), the verdict (BS Meter), `executive_summary` as the body, cited `sources[]`, publish date, key `warnings[]` as caveats, and a "panel divided" note when `audit.panel_agreement == "split"`. **Omit** `audit.debate_pro`/`debate_con`, per-panelist `assessments[]`, raw scores — those live on lenz.io; the article links there for depth.
+**Editorial selection — show what a reader needs, not the audit trail.** Render: the `key_finding` (headline — the one-sentence fact the check established; claims without one never publish), the claim (quoted exhibit), the verdict (BS Meter), `executive_summary` as the body, cited `sources[]`, publish date, key `warnings[]` as caveats, and a "panel divided" note when `audit.panel_agreement == "split"`. **Omit** `audit.debate_pro`/`debate_con`, per-panelist `assessments[]`, raw scores — those live on lenz.io; the article links there for depth.
 
 ## Hard constraints (guardrails)
 
@@ -44,7 +44,7 @@ An automated fact-check publication — a small "newsroom" — where **every art
 | False | TOTAL BS | `#C62828` |
 
   Article rendering: a 5-stop horizontal track with a marker on the verdict's stop + `TOTAL BS — Verdict: False`. Card rendering: compact mono pill (`■ TOTAL BS`). Pure HTML/CSS, no JS. **`Error` verdicts are excluded from the site entirely** (build filter).
-- **Neutrality mechanic:** a claim never appears as a bare assertion. Every headline is visually marked as *a claim under examination* — mono `THE CLAIM` kicker, quoted styling — with the verdict immediately adjacent.
+- **Neutrality mechanic (finding-first):** headlines are the **key findings** — verified facts the site can assert plainly (truth-first; the myth never headlines any surface). The claim renders only as *a quoted exhibit under examination* — mono `THE CLAIM` kicker, quoted styling — with the verdict immediately adjacent to it, never to the finding. Two invariants, every surface: the verdict never appears without the claim beside it; the summary never appears without the claim above it. Only the finding stands alone.
 - **Layout:** newspaper conventions — hairline rules, folio line (date · tagline · Powered-by-Lenz chip), dense front page with lead + rail, uppercase mono kickers, article measure ~65ch, max content width 72rem.
 - **ClaimReview stays canonical:** JSON-LD `alternateName` carries the API verdict (`False`), not the BS label. BS labels are presentation-layer only.
 
@@ -59,7 +59,7 @@ The atom: one verified claim = one article. Four axes: **sections** (primary nav
 **Pages:**
 - **`/` home** — lead check (latest); "Fresh Checks" rail (recent list); **The BS Files** strip (recent False/Mostly False); per-section blocks (top 4–6 each); **Checks Out** strip (recent True/Mostly True); "Frequently Checked" entity cloud; about-blurb band ("This entire site is a few hundred lines of Python on the Lenz API →").
 - **`/[section]/`** ×8 — `health, science, politics, finance, tech, history, legal, general`. Hand-written intro blurb (in `config.py`), feed at 20/page (`/[section]/page/N/`), client-side verdict filter chips (progressive enhancement over `data-verdict`; no-JS = unfiltered list).
-- **`/[section]/[slug]/`** — **the article** (core unit). Breadcrumb (Home › Section); mono kicker `SECTION · date`; `THE CLAIM` label + H1 (the claim, quoted styling); BS Meter + `Verified by Lenz · {created_at}`; `THE SHORT VERSION` (executive_summary as body); `CAVEATS` (warnings[]); "panel divided" note when split; `THE RECEIPTS` (sources[] — title, source_name, date, external link); `MORE CHECKS` (related, from cache); attribution box → `https://lenz.io/c/{verification_id}` ("Read the full analysis on Lenz →"); ClaimReview + NewsArticle JSON-LD.
+- **`/[section]/[slug]/`** — **the article** (core unit). Breadcrumb (Home › Section · date); H1 = the key finding (asserted); claim block: `THE CLAIM` label + quoted claim + BS Meter + `Verified by Lenz · {created_at}` (one hairline-framed group); `THE SHORT VERSION` (executive_summary as body); `CAVEATS` (warnings[]); "panel divided" note when split; `THE RECEIPTS` (sources[] — title, source_name, date, external link); `MORE CHECKS` (related, from cache); attribution box → `https://lenz.io/c/{verification_id}` ("Read the full analysis on Lenz →"); ClaimReview + NewsArticle JSON-LD.
 - **`/topic/[entity]/`** — entity hubs (name, claim count, feed). **Only entities with ≥2 claims get pages** (no thin content); below threshold, names render unlinked. `qid` → `sameAs` (Wikidata) in JSON-LD.
 - **`/latest/`** — reverse-chron, all sections, paginated.
 - **`/bs-files/`**, **`/checks-out/`** — curated collections (~40 each), computed locally from verdicts (no extra API calls).

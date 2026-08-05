@@ -25,10 +25,11 @@ def _offline_fonts(monkeypatch, tmp_path):
 def _detail(**over):
     d = {
         "verification_id": "abc12345",
-        "claim": "The moon is made of rock.",
+        "claim": "The moon is made of green cheese.",
         "verdict": "True",
         "domain": "Science",
         "executive_summary": "Yes — rock, confirmed by many missions.",
+        "key_finding": "The moon is made of rock.",
     }
     d.update(over)
     return d
@@ -67,8 +68,8 @@ class TestLiveCore:
         )
         assert 'name="twitter:card" content="summary_large_image"' in html_out
         assert 'content="noindex"' in html_out
-        # canonical = minted future article URL (section + slug + id)
-        slug = content.mint_slug("The moon is made of rock.", "abc12345")
+        # canonical = minted future article URL (section + CLAIM-derived slug + id)
+        slug = content.mint_slug("The moon is made of green cheese.", "abc12345")
         assert (
             f'rel="canonical" href="https://isthisbs.org/science/{slug}/"' in html_out
         )
@@ -100,9 +101,10 @@ class TestLiveCore:
         assert Image.open(io.BytesIO(png)).size == (1200, 630)
 
 
-def test_live_page_card_carries_summary_and_caveats():
-    """The /c/ interim page: og:description leads verdict-then-summary, and
-    the body renders the caveats list when warnings exist."""
+def test_live_page_card_carries_description_and_caveats():
+    """The /c/ interim page: og:description is the claim-anchored template
+    (claim + verdict bound together), and the body renders the caveats list
+    when warnings exist."""
     from functions.live_core import build_live_html
 
     detail = _detail()
@@ -112,15 +114,51 @@ def test_live_page_card_carries_summary_and_caveats():
         "<script>x</script>",
     ]
     page = build_live_html(detail)
-    # description: verdict label first, then trimmed summary, ellipsis capped
     assert 'og:description" content="' in page
     desc = page.split('og:description" content="')[1].split('"')[0]
-    assert desc.startswith(("NOT BS", "HARDLY BS", "SOME BS", "MOSTLY BS", "TOTAL BS"))
-    assert "Solid evidence contradicts" in desc and desc.endswith("…")
+    assert desc.startswith("We checked: “The moon is made of green cheese.”")
+    assert "Verdict: True." in desc
     # caveats render, escaped
     assert "Caveats" in page
     assert "Numbers come from two different datasets." in page
     assert "<script>x</script>" not in page and "&lt;script&gt;" in page
+
+
+def test_live_page_finding_first_header():
+    """The live page mirrors the article: finding H1 (asserted, unquoted),
+    quoted claim + verdict pill bound beneath it."""
+    from functions.live_core import build_live_html
+
+    page = build_live_html(_detail())
+    assert "<h1>The moon is made of rock.</h1>" in page
+    assert "“The moon is made of green cheese.”" in page
+    assert "<title>The moon is made of rock. — IsThisBS?</title>" in page
+    # claim line precedes the pill (invariant 1: verdict binds to the claim)
+    assert page.index("green cheese") < page.index("Verdict: True")
+
+
+def test_fetch_rejects_details_without_key_finding(monkeypatch):
+    """Every prod verification carries a key_finding; a detail without one is
+    malformed and 404s — the live mirror of the static build's skip gate."""
+    import json as _json
+
+    from functions import live_core
+
+    naked = _detail()
+    del naked["key_finding"]
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return _json.dumps(naked).encode()
+
+    monkeypatch.setattr(live_core.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    assert live_core.fetch_detail("abc12345") is None
 
 
 def test_live_page_no_caveats_section_without_warnings():

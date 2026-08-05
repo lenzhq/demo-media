@@ -16,17 +16,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ check.claim|truncate(70) }} — {{ SITE.name }}</title>
+  <title>{{ check.headline|truncate(70) }} — {{ SITE.name }}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="canonical" href="{{ check.url }}">
   <meta name="robots" content="noindex">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="{{ check.claim|truncate(110) }}">
-  <meta property="og:description" content="{{ check.verdict.bs_label }} — Verdict: {{ check.verdict.key }}. Checked against independent sources.">
+  <meta property="og:title" content="{{ check.headline|truncate(110) }}">
+  {#- Claim-anchored (shared with the article's snippet): with the finding as
+      the title, a bare verdict here would read as rating the finding. -#}
+  <meta property="og:description" content="{{ meta_description }}">
   <meta property="og:image" content="{{ SITE.base_url }}{{ check.og_path }}">
+  <meta property="og:image:alt" content="Fact check: {{ check.headline }}">
   <meta property="og:url" content="{{ check.url }}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="{{ SITE.base_url }}{{ check.og_path }}">
+  <meta name="twitter:image:alt" content="Fact check: {{ check.headline }}">
   <meta http-equiv="refresh" content="0; url={{ check.path }}">
   <script>location.replace("{{ check.path }}");</script>
 </head>

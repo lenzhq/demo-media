@@ -1,7 +1,12 @@
 {#
-  Check card (DESIGN.md §5). Three variants:
-    ""     — default feed card: kicker, headline, pill, 2-line summary.
-    "row"  — compact list row (rails/feeds): kicker, single-line headline, pill.
+  Check card (DESIGN.md §5). Two variants:
+    ""     — default feed card: kicker, headline, claim+pill line.
+    "row"  — compact list row (rails/feeds): kicker, headline, claim+pill line.
+
+  The headline is the KEY FINDING (our reporting); the verdict pill rates the
+  CLAIM, so it always sits on the same line as the quoted claim (invariant 1
+  — a pill may never sit alone under the finding). Checks without a
+  key_finding never publish (build.py gate), so there is no fallback shape.
 
   `heading` sets the headline element (h2 in top-level feeds, h3 when the card
   sits under a section-block h2) to keep heading nesting correct.
@@ -23,8 +28,12 @@
     <time datetime="{{ check.created_at }}">{{ check.created_at|datefmt }}</time>
   </p>
   <{{ heading }} class="check-card__title">
-    <a href="{{ check.path }}">{{ check.claim }}</a>
+    <a href="{{ check.path }}">{{ check.headline }}</a>
   </{{ heading }}>
-  {{ pill(check) }}
+  <p class="check-card__claim">
+    <span class="check-card__claim-label">Claim:</span>
+    <q>{{ check.claim|truncate(80, False, '…') }}</q>
+    {{ pill(check) }}
+  </p>
 </article>
 {% endmacro %}

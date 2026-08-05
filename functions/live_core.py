@@ -20,6 +20,7 @@ import urllib.request
 from isthisbs import ogimage
 from isthisbs.config import SITE, VERDICTS, section_for_domain
 from isthisbs.content import mint_slug
+from isthisbs.seo import claim_anchored_description
 
 VID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
@@ -45,6 +46,11 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
         return None
     if not detail or not detail.get("claim"):
         return None
+    # Every prod verification carries a key_finding (generated with the
+    # verdict; back catalog backfilled). A detail without one is malformed
+    # and never renders — the same skip rule as the static build's gate.
+    if not (detail.get("key_finding") or "").strip():
+        return None
     if detail.get("verdict") not in VERDICTS:  # Error / unknown never render
         return None
     return detail
@@ -52,8 +58,7 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
 
 def build_card_png(detail: dict) -> bytes:
     """The claim's OG card, identical to the built one (same renderer)."""
-    verdict = VERDICTS[detail["verdict"]]
-    img = ogimage.render_card(detail["claim"], verdict)
+    img = ogimage.render_card(detail["key_finding"].strip())
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -129,18 +134,12 @@ def build_live_html(detail: dict) -> str:
     label = html.escape(verdict.bs_label)
     key = html.escape(verdict.key)
     summary = html.escape((detail.get("executive_summary") or "").strip())
-    # Card description: verdict first, then as much summary as fits — X mostly
-    # shows title+image, but Slack/WhatsApp/Discord render the description.
-    raw_summary = " ".join((detail.get("executive_summary") or "").split())
-    desc_summary = (
-        raw_summary[:157].rsplit(" ", 1)[0] + "…"
-        if len(raw_summary) > 157
-        else raw_summary
-    )
+    headline_raw = detail["key_finding"].strip()
+    # Claim-anchored description (same builder as the static site): with the
+    # finding as the card title, this is where claim + verdict stay bound.
+    source_count = len(detail.get("sources") or [])
     description = html.escape(
-        f"{verdict.bs_label} — {desc_summary}"
-        if desc_summary
-        else f"{verdict.bs_label} — Verdict: {verdict.key}. Checked against independent sources."
+        claim_anchored_description(detail["claim"], verdict.key, source_count)
     )
     warnings = [
         html.escape(str(w)) for w in (detail.get("warnings") or []) if str(w).strip()
@@ -157,7 +156,16 @@ def build_live_html(detail: dict) -> str:
     slug = mint_slug(detail["claim"], str(detail.get("verification_id", "")))
     canonical = f"{SITE.base_url}{section.path}{slug}/"
     lenz_url = html.escape(SITE.lenz_claim_url(str(detail.get("verification_id", ""))))
-    title = html.escape(detail["claim"][:110])
+    title = html.escape(headline_raw[:110])
+    # Finding-first header, mirroring the article template: the H1 asserts
+    # the finding, the quoted claim + verdict pill stay bound beneath it
+    # (invariant 1).
+    header_html = (
+        f"<h1>{html.escape(headline_raw)}</h1>\n"
+        '  <p class="kicker">The Claim</p>\n'
+        f'  <p class="claimline">“{claim}”</p>\n'
+        f'  <p class="pill"><b></b>{label} — Verdict: {key}</p>'
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -197,6 +205,8 @@ def build_live_html(detail: dict) -> str:
   .kicker {{ font-family: ui-monospace, Menlo, monospace; font-size:.6875rem;
     letter-spacing:.08em; text-transform:uppercase; opacity:.65; }}
   h1 {{ font-size: clamp(1.6rem, 5vw, 2.4rem); line-height:1.15; font-weight:800; }}
+  .claimline {{ font-size: 1.15rem; font-weight: 600; line-height: 1.5;
+    margin: .2rem 0 .8rem; }}
   .pill {{ font-family: ui-monospace, Menlo, monospace; font-weight:700;
     color:{verdict.text_hex}; }}
   .pill b {{ display:inline-block; width:.7em; height:.7em;
@@ -225,9 +235,7 @@ def build_live_html(detail: dict) -> str:
   </div>
 </header>
 <main class="wrap">
-  <p class="kicker">The Claim</p>
-  <h1>“{claim}”</h1>
-  <p class="pill"><b></b>{label} — Verdict: {key}</p>
+  {header_html}
   <p>{summary}</p>
   {caveats_html}
   {receipts_html}
