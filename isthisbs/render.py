@@ -393,8 +393,11 @@ def _render_articles(
             # Finding-first title; "Fact Check" is the genre marker. No
             # verdict here — next to the finding it would read as rating the
             # finding (it rates the claim, which lives in the description).
-            # No brand suffix (Google shows the site name separately).
-            page_title=f"{_truncate(check.headline, 75)} — Fact Check",
+            # No brand suffix (Google shows the site name separately). The
+            # full finding, untruncated: engines read the whole tag for
+            # ranking and do their own visual elision — a hand-baked "…"
+            # only degrades tabs, shares, and title rewrites.
+            page_title=f"{check.headline} — Fact Check",
             meta_description=seo.meta_description(check),
             og_type="article",
             og_image_path=check.og_path,
