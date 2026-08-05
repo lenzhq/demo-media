@@ -249,7 +249,10 @@ def news_article(check: Check, *, base_url: str) -> dict:
     node: dict = {
         "@context": SCHEMA,
         "@type": "NewsArticle",
-        "headline": _trim(check.headline, 110),
+        # Full finding, untruncated: Google dropped the old 110-char Article
+        # guideline; findings are contract-capped (~140) and machine
+        # consumers handle length themselves.
+        "headline": check.headline,
         "url": check.url,
         "mainEntityOfPage": check.url,
         "datePublished": _schema_dt(check.created_at, check.created_dt),

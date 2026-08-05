@@ -89,11 +89,14 @@ def test_claim_review_about_sameas_only_with_qid(make_detail):
 # --------------------------------------------------------------------------- #
 
 
-def test_news_article_headline_capped(make_detail):
-    long_claim = "This is a very long claim. " * 20
-    check = _one(make_detail, claim=long_claim)
+def test_news_article_headline_full_finding(make_detail):
+    finding = (
+        "A finding somewhat past the old 110-char cap, which Google retired "
+        "— length is the consumer's concern now."
+    )
+    check = _one(make_detail, key_finding=finding)
     ld = seo.news_article(check, base_url=SITE.base_url)
-    assert len(ld["headline"]) <= 110
+    assert ld["headline"] == finding
 
 
 def test_news_article_mentions_sameas_only_with_qid(make_detail):
