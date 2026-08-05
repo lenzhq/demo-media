@@ -73,10 +73,21 @@ article_path=$(${CURL} "${BASE_URL}/sitemap-articles.xml" \
 vid=$(sed -n 's|.*-\([a-f0-9]\{8\}\)/$|\1|p' <<<"${article_path}")
 if [[ -n "${article_path}" && -n "${vid}" ]]; then
   page=$(${CURL} "${BASE_URL}${article_path}")
-  grep -q '<title>Fact Check: ' <<<"${page}" && ok "article title carries Fact Check + verdict" || bad "article title contract broken (${article_path})"
-  grep -q 'content="Verdict: ' <<<"${page}" && ok "article description is verdict-first" || bad "article description contract broken"
+  # Finding-first SERP contract: title = "{finding} — Fact Check" (no
+  # verdict — it would read as rating the finding); description is the
+  # claim-anchored template that binds claim + verdict together.
+  grep -q ' — Fact Check</title>' <<<"${page}" && ok "article title is finding-first + Fact Check marker" || bad "article title contract broken (${article_path})"
+  grep -q 'content="We checked: ' <<<"${page}" && ok "article description is claim-anchored" || bad "article description contract broken"
   grep -q 'application/ld+json' <<<"${page}" && ok "article carries JSON-LD" || bad "article missing JSON-LD"
-  check_status "${BASE_URL}/og/${vid}.png" 200 "static OG card"
+  # Both OG names must resolve: the hashed public URL the meta tags use,
+  # and the legacy un-hashed copy that keeps old social scrapes alive.
+  og_hashed=$(grep -o 'property="og:image" content="[^"]*"' <<<"${page}" | head -1 | grep -o '/og/[^"]*')
+  if [[ -n "${og_hashed}" ]]; then
+    check_status "${BASE_URL}${og_hashed}" 200 "hashed OG card"
+  else
+    bad "article og:image meta missing"
+  fi
+  check_status "${BASE_URL}/og/${vid}.png" 200 "legacy OG card copy"
   check_status "${BASE_URL}/c/${vid}/" 200 "/c/ short-link stub"
   ctype=$(${CURL} -o /dev/null -w '%{content_type}' "${BASE_URL}/og-live/${vid}.png")
   [[ "${ctype}" == image/png* ]] && ok "claimlive function renders cards" || bad "og-live not a png (${ctype})"
