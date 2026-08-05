@@ -16,9 +16,15 @@
       <span class="dot" aria-hidden="true">·</span>
       <time datetime="{{ lead.created_at }}">{{ lead.created_at|datefmt }}</time>
     </p>
-    <p class="kicker">The Claim</p>
-    <h1 class="lead__title claim-quote{{ claim_size_class(lead.claim) }}"><a href="{{ lead.path }}">{{ lead.claim }}</a></h1>
-    {{ meter(lead) }}
+    {#- Hero = the finding; beneath it the claim group carries the quoted
+        claim + the full article-size meter (the signature component stays on
+        the front page — DESIGN.md §6, invariant 1). -#}
+    <h1 class="lead__title{{ claim_size_class(lead.headline) }}"><a href="{{ lead.path }}">{{ lead.headline }}</a></h1>
+    <div class="claim-block lead__claim">
+      <p class="kicker">The Claim</p>
+      <p class="claim-block__claim claim-quote">{{ lead.claim }}</p>
+      {{ meter(lead) }}
+    </div>
     {% if lead.summary_paragraphs %}
     <p class="lead__standfirst">{{ lead.summary_paragraphs[0] }}</p>
     {% endif %}

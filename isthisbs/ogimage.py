@@ -1,9 +1,12 @@
 """Open Graph card generator (1200×630 PNG) — DESIGN.md §7.
 
 Every article gets a share card rendered in the IsThisBS house style: newsprint
-paper, the caution-yellow top bar, the claim set in Fraunces, and the verdict
-block dual-labelled (BS label + canonical verdict) so the card reads correctly
-even stripped of color. A single site-default card covers non-article pages.
+paper, the caution-yellow top bar, a ``FACT CHECK`` kicker, and the KEY FINDING
+set large in Fraunces — the card leads with the established fact, never the
+myth. No claim, no verdict block: the verdict rates the claim, and next to a
+bare finding it would read as rating the finding. Checks without a finding
+never render anywhere (build gate; the live function 404s them). A single
+site-default card covers non-article pages.
 
 Design notes:
 - **Fonts are fetched at build time** into ``cache_dir/fonts/`` from the Google
@@ -11,9 +14,14 @@ Design notes:
   so the *repo* stays font-free. If the download fails (offline build), we fall
   back to Pillow's bitmap default with a logged warning — card generation must
   never crash the build.
-- **Rendering is incremental**: each card is cached under a content hash of
-  ``claim + verdict + TEMPLATE_VERSION``. A build only re-renders cards whose
-  content (or the template itself) changed; stale variants are pruned.
+- **Rendering is incremental AND content-addressed**: each card is cached and
+  *published* under ``config.og_content_key(text)`` — deterministic
+  across rebuilds, changing exactly when the pixels would (text change or a
+  template-version bump). Social scrapers cache by URL, so the hashed public
+  name is what propagates a redesign; the legacy ``/og/{vid}.png`` name is
+  still published as a copy so already-scraped cards keep resolving.
+- **X safe zone (the v5 lesson)**: X's timeline title-pill overlays roughly
+  the bottom 75px of the card — only the brand line may live there.
 
 Text is wrapped by *measuring* with ``font.getlength`` / ``getbbox`` rather than
 counting characters, so wrapping is correct for a proportional display face.
@@ -21,7 +29,6 @@ counting characters, so wrapping is correct for a proportional display face.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import shutil
 import urllib.request
@@ -29,12 +36,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .config import Verdict
+from .config import og_content_key
 
 logger = logging.getLogger(__name__)
-
-# Bump when the card layout changes so every cached card re-renders.
-TEMPLATE_VERSION = "6"  # v6: site card uses the real wordmark lockup
 
 # Canvas + palette (DESIGN.md §3 / §7). Pillow accepts hex strings directly.
 CARD_W, CARD_H = 1200, 630
@@ -272,16 +276,14 @@ def _draw_tracked_baseline(draw, x, baseline, text, font, fill, tracking) -> flo
 # --------------------------------------------------------------------------- #
 
 
-def render_card(claim: str, verdict: Verdict) -> Image.Image:
-    """Render one article's OG card: claim + dual-labelled verdict block.
+def render_card(text: str) -> Image.Image:
+    """Render one article's OG card — the key finding, standing alone.
 
-    Layout (v3, after visual review of 10 rendered cards):
-    - attribution sits top-RIGHT on the kicker line (folio convention) so the
-      bottom row belongs entirely to the verdict — "MOSTLY TRUE"-length
-      suffixes always fit now instead of silently disappearing;
-    - the claim scales 72→48px by length and is vertically centered between
-      kicker and verdict, so one-liners don't strand a void and five-liners
-      keep guaranteed air above the verdict row.
+    Pinned anatomy (v7, DESIGN.md §7): paper background; 12px yellow bar;
+    mono ``FACT CHECK`` kicker; the finding in the display serif (72→48px by
+    length, up to 5 lines, vertically centered); bottom-right mono brand
+    line. No claim, no verdict row — the verdict rates the claim, and next
+    to the finding it would read as rating the finding.
     """
     _load_fonts_if_needed()
     img = Image.new("RGB", (CARD_W, CARD_H), PAPER)
@@ -291,58 +293,44 @@ def render_card(claim: str, verdict: Verdict) -> Image.Image:
     draw.rectangle([0, 0, CARD_W, TOP_BAR_H], fill=ACCENT)
 
     label_font = _font(_MONO, 26)
-    _draw_tracked(draw, (MARGIN, 60), "THE CLAIM", label_font, INK_60, 4)
+    _draw_tracked(draw, (MARGIN, 60), "FACT CHECK", label_font, INK_60, 4)
 
-    # Attribution — top-right, opposite the kicker.
-    attr_font = _font(_MONO_LIGHT, 22)
-    # The handle rides on every share card — the cards travel on X itself,
-    # so this advertises the reply bot in the medium where it works.
-    attr = "IsThisBS?  ·  @isthisbs  ·  verified by Lenz"
-    attr_w = _text_width(attr_font, attr)
-    draw.text((CARD_W - MARGIN - attr_w, 62), attr, font=attr_font, fill=INK_60)
-
-    # --- Claim: adaptive size, vertically centered in its area ---
+    # --- Finding: adaptive size, vertically centered ---
     area_top = 132
-    # 150 (not 96) from the bottom: X's timeline title-pill overlays roughly
-    # the bottom 75px of the card — the verdict row must clear it.
-    block_y = CARD_H - 150
-    area_bottom = block_y - 36  # guaranteed air above the verdict row
+    # The brand line sits at CARD_H-110; X's timeline title-pill overlays
+    # roughly the bottom 75px — the finding text must clear both.
+    area_bottom = CARD_H - 146
     max_text_w = CARD_W - 2 * MARGIN
-    quoted = f"“{claim}”"
+    display_text = text
     lines: list[str] = []
-    claim_font = _font(_DISPLAY, 48)
+    text_font = _font(_DISPLAY, 48)
     line_h = 60
     for size in (72, 64, 56, 48):
         font = _font(_DISPLAY, size)
         lh = int(size * 1.24)
         max_lines = max(1, (area_bottom - area_top) // lh)
-        wrapped = _wrap(font, quoted, max_text_w, max_lines)
+        wrapped = _wrap(font, display_text, max_text_w, max_lines)
         # Accept the first size whose wrap needed no truncation; the smallest
         # size takes whatever fits (with word-boundary ellipsis from _wrap).
         joined = "".join(wrapped)
         if not joined.endswith("…") or size == 48:
-            claim_font, line_h, lines = font, lh, wrapped
+            text_font, line_h, lines = font, lh, wrapped
             break
     text_h = len(lines) * line_h
     y = area_top + max(0, (area_bottom - area_top - text_h) // 2)
     for line in lines:
-        draw.text((MARGIN, y), line, font=claim_font, fill=INK)
+        draw.text((MARGIN, y), line, font=text_font, fill=INK)
         y += line_h
 
-    # --- Bottom verdict row (owns the full width now) ---
-    square = 34
-    draw.rectangle(
-        [MARGIN, block_y, MARGIN + square, block_y + square],
-        fill=verdict.fill_hex,
+    # --- Brand line, bottom-right (the only content in the X safe zone) ---
+    attr_font = _font(_MONO_LIGHT, 22)
+    # The handle rides on every share card — the cards travel on X itself,
+    # so this advertises the reply bot in the medium where it works.
+    attr = "IsThisBS?  ·  @isthisbs  ·  verified by Lenz"
+    attr_w = _text_width(attr_font, attr)
+    draw.text(
+        (CARD_W - MARGIN - attr_w, CARD_H - 110), attr, font=attr_font, fill=INK_60
     )
-    vfont = _font(_MONO, 30)
-    tx = MARGIN + square + 20
-    ty = block_y + (square - 30) // 2
-    label = verdict.bs_label
-    suffix = f" — VERDICT: {verdict.key.upper()}"
-    draw.text((tx, ty), label, font=vfont, fill=verdict.text_hex)
-    if _text_width(vfont, label + suffix) <= CARD_W - MARGIN - tx:
-        draw.text((tx + _text_width(vfont, label), ty), suffix, font=vfont, fill=INK)
     return img
 
 
@@ -417,13 +405,6 @@ def render_site_card() -> Image.Image:
 # --------------------------------------------------------------------------- #
 
 
-def _content_key(claim: str, verdict_key: str) -> str:
-    """Short content hash keying the cache — id-independent so an edited claim
-    or verdict yields a new cache file (and the old one gets pruned)."""
-    raw = f"{claim}\x00{verdict_key}\x00{TEMPLATE_VERSION}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
-
-
 def _prune_variants(og_cache: Path, prefix: str, keep: str) -> None:
     """Delete stale ``{prefix}-*.png`` cache files that aren't ``keep``."""
     for stale in og_cache.glob(f"{prefix}-*.png"):
@@ -441,6 +422,11 @@ def copy_cached(cache_dir: Path, out_dir: Path) -> int:
     not lose the cards from the output — the render step wipes ``out_dir``,
     so without this every skip-og rebuild shipped a site whose og:image
     URLs 404. Costs ~0.2s for a full catalog.
+
+    Every article card ships under BOTH its hashed public name (what the meta
+    tags reference — ``{vid}-{hash}.png``, same name the cache uses) and the
+    legacy ``{vid}.png`` copy; publishing only the stripped name would 404
+    every og:image on a skip-og build.
     """
     og_cache = Path(cache_dir) / "og"
     if not og_cache.is_dir():
@@ -449,15 +435,18 @@ def copy_cached(cache_dir: Path, out_dir: Path) -> int:
     dest.mkdir(parents=True, exist_ok=True)
     copied = 0
     for png in og_cache.glob("*.png"):
-        # Cached names are ``{id}-{hash}.png``; published names are ``{id}.png``.
-        public = png.stem.rsplit("-", 1)[0] + ".png" if "-" in png.stem else png.name
-        shutil.copyfile(png, dest / public)
-        copied += 1
-        if public == _LEGACY_SITE_CARD_NAME:
-            # The site card is cached under its old "site-" prefix but ships
-            # under both names; skip-og builds must publish the one the meta
-            # tags actually reference, not just the legacy alias.
+        if png.stem.startswith("site-"):
+            # The site card is cached under its "site-" prefix but ships
+            # under its brand name plus the pre-v6 legacy alias.
             shutil.copyfile(png, dest / SITE_CARD_NAME)
+            shutil.copyfile(png, dest / _LEGACY_SITE_CARD_NAME)
+            copied += 2
+            continue
+        shutil.copyfile(png, dest / png.name)  # hashed public name
+        copied += 1
+        if "-" in png.stem:
+            legacy = png.stem.rsplit("-", 1)[0] + ".png"
+            shutil.copyfile(png, dest / legacy)
             copied += 1
     return copied
 
@@ -483,16 +472,20 @@ def generate(checks: list, cache_dir: Path, out_dir: Path) -> int:
     rendered = 0
     for check in checks:
         vid = check.verification_id
-        key = _content_key(check.claim, check.verdict.key)
+        key = og_content_key(check.headline)
         cache_file = og_cache / f"{vid}-{key}.png"
         if not cache_file.exists():
-            render_card(check.claim, check.verdict).save(cache_file, "PNG")
+            render_card(check.headline).save(cache_file, "PNG")
             rendered += 1
         _prune_variants(og_cache, vid, cache_file.name)
+        # Hashed public name (what the meta tags reference — propagates any
+        # card change through URL-keyed social scrape caches) + the legacy
+        # un-hashed copy so already-scraped cards keep resolving.
+        shutil.copyfile(cache_file, og_out / cache_file.name)
         shutil.copyfile(cache_file, og_out / f"{vid}.png")
 
     # Site-default card (keyed only on the template version).
-    site_key = _content_key("__site__", "__site__")
+    site_key = og_content_key("__site__")
     site_cache = og_cache / f"site-{site_key}.png"
     if not site_cache.exists():
         render_site_card().save(site_cache, "PNG")

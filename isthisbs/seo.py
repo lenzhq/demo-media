@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from html import escape as html_escape
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -120,6 +121,58 @@ def _trim(text: str, limit: int) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Shared editorial strings (the claim↔verdict binding, invariant 1)
+# --------------------------------------------------------------------------- #
+
+#: Meta-description budget (~what Google renders before truncating).
+_DESCRIPTION_BUDGET = 158
+
+
+def claim_anchored_description(claim: str, verdict_key: str, source_count: int) -> str:
+    """The claim-anchored description used by every description surface.
+
+    With the finding as the page title, the description is where the claim
+    and its verdict stay bound together (invariant 1) — and where the myth's
+    own wording keeps matching the queries people actually type. Primitive
+    signature (not a Check) so ``functions/live_core.py`` can reuse it on a
+    raw API dict.
+    """
+    # Strip the claim's trailing terminal punctuation so the template's own
+    # period doesn't double up ("…oxygen?." / "…oxygen..").
+    text = " ".join((claim or "").split()).rstrip(".!?")
+    prefix = "We checked: “"
+    close = ".” Verdict: "
+    verdict_part = f"{verdict_key}."
+    suffix = (
+        f" Checked against {source_count} independent sources." if source_count else ""
+    )
+    fixed = len(prefix) + len(close) + len(verdict_part) + len(suffix)
+    budget = _DESCRIPTION_BUDGET - fixed
+    trimmed = _trim(text, max(40, budget))
+    if trimmed.endswith("…"):  # ellipsis already terminates the quote
+        close = "” Verdict: "
+    return f"{prefix}{trimmed}{close}{verdict_part}{suffix}"
+
+
+def meta_description(check: Check) -> str:
+    """``claim_anchored_description`` for a Check — SERP snippet,
+    og:description, NewsArticle.description, and the /c/ stub all share it so
+    the surfaces can't drift."""
+    return claim_anchored_description(
+        check.claim, check.verdict.key, len(check.sources)
+    )
+
+
+def claim_verdict_line(check: Check, *, claim_chars: int = 160) -> str:
+    """Plain-text claim+verdict binding line for text surfaces (Atom
+    summaries, llms indexes): the verdict never appears without the claim."""
+    return (
+        f"Claim: “{_trim(check.claim, claim_chars)}” — "
+        f"Verdict: {check.verdict.key} ({check.verdict.bs_label})."
+    )
+
+
+# --------------------------------------------------------------------------- #
 # JSON-LD builders (pure)
 # --------------------------------------------------------------------------- #
 
@@ -160,6 +213,9 @@ def claim_review(check: Check, *, base_url: str) -> dict:
         "@context": SCHEMA,
         "@type": "ClaimReview",
         "url": check.url,
+        # The review's own headline (the finding); ``claimReviewed`` below
+        # stays the claim — the cardinal machine-canonical rule.
+        "name": check.headline,
         "claimReviewed": check.claim,
         "datePublished": _schema_dt(check.created_at, check.created_dt),
         "reviewBody": check.executive_summary,
@@ -193,7 +249,7 @@ def news_article(check: Check, *, base_url: str) -> dict:
     node: dict = {
         "@context": SCHEMA,
         "@type": "NewsArticle",
-        "headline": _trim(check.claim, 110),
+        "headline": _trim(check.headline, 110),
         "url": check.url,
         "mainEntityOfPage": check.url,
         "datePublished": _schema_dt(check.created_at, check.created_dt),
@@ -205,9 +261,9 @@ def news_article(check: Check, *, base_url: str) -> dict:
         "author": _lenz_author(),
         "publisher": _isthisbs_org(base_url),
     }
-    summary = check.summary_paragraphs
-    if summary:
-        node["description"] = _trim(summary[0], 160)
+    # The claim-anchored description, not a bare summary sentence: no claim
+    # text exists elsewhere in this node, so "the claim…" would dangle.
+    node["description"] = meta_description(check)
     mentions = _entity_things(check)
     if mentions:
         node["mentions"] = mentions
@@ -241,7 +297,7 @@ def item_list(checks: list[Check], *, base_url: str) -> dict:
                 "@type": "ListItem",
                 "position": i,
                 "url": check.url,
-                "name": check.claim,
+                "name": check.headline,
             }
             for i, check in enumerate(checks, start=1)
         ],
@@ -442,11 +498,35 @@ def _write_sitemap_news(checks: list[Check], out_dir: Path) -> None:
             f"{{{_NEWS_NS}}}publication_date",
             check.created_at or _rfc3339(check.created_dt),
         )
-        _sub(news, f"{{{_NEWS_NS}}}title", check.claim)
+        # Must match the article's headline (Google's guideline) — the finding.
+        _sub(news, f"{{{_NEWS_NS}}}title", check.headline)
     _write_tree(root, out_dir / "sitemap-news.xml")
 
 
 # -- Atom feeds ------------------------------------------------------------- #
+
+
+def _entry_content_html(check: Check) -> str:
+    """Structured HTML ``<content>`` for a feed entry — a mini-article.
+
+    Feed readers render this instead of the bare one-line summary: quoted
+    claim, verdict (label + canonical), the short version, receipts link.
+    Returned as an HTML *string* — Atom ``type="html"`` means entity-escaped
+    markup, which ElementTree's serializer produces from text automatically.
+    Dynamic strings are escaped here so claim text can never become markup
+    after the reader unescapes the payload.
+    """
+    claim = html_escape(check.claim)
+    verdict = check.verdict
+    paras = "".join(f"<p>{html_escape(p)}</p>" for p in check.summary_paragraphs)
+    return (
+        f"<p><em>The claim:</em> <q>{claim}</q></p>"
+        f"<p><strong>{html_escape(verdict.bs_label)}</strong>"
+        f" — Verdict: {html_escape(verdict.key)}</p>"
+        f"{paras}"
+        f'<p><a href="{html_escape(check.url)}">Read the receipts on '
+        f"{html_escape(SITE.short_name)}</a></p>"
+    )
 
 
 def _atom_feed(
@@ -484,7 +564,7 @@ def _atom_feed(
     for check in checks:
         entry = _sub(feed, f"{{{_ATOM_NS}}}entry")
         _sub(entry, f"{{{_ATOM_NS}}}id", check.url)
-        _sub(entry, f"{{{_ATOM_NS}}}title", check.claim)
+        _sub(entry, f"{{{_ATOM_NS}}}title", check.headline)
         link = _sub(entry, f"{{{_ATOM_NS}}}link")
         link.set("rel", "alternate")
         link.set("type", "text/html")
@@ -492,10 +572,16 @@ def _atom_feed(
         modified = _to_dt(check.modified_at, check.created_dt)
         _sub(entry, f"{{{_ATOM_NS}}}updated", _rfc3339(modified))
         _sub(entry, f"{{{_ATOM_NS}}}published", _rfc3339(check.created_dt))
+        # With the finding as the entry title, the summary restores the
+        # claim→verdict binding before the summary prose (whose "the claim…"
+        # needs that antecedent inside a feed reader).
         summary_paras = check.summary_paragraphs
-        summary_text = summary_paras[0] if summary_paras else check.claim
+        first_para = summary_paras[0] if summary_paras else ""
+        summary_text = f"{claim_verdict_line(check)} {first_para}".strip()
         summary = _sub(entry, f"{{{_ATOM_NS}}}summary", summary_text)
         summary.set("type", "text")
+        content = _sub(entry, f"{{{_ATOM_NS}}}content", _entry_content_html(check))
+        content.set("type", "html")
         # Two facets per entry: the canonical verdict, and the section.
         verdict_cat = _sub(entry, f"{{{_ATOM_NS}}}category")
         verdict_cat.set("term", check.verdict.key)
@@ -552,8 +638,11 @@ def _write_llms_txt(checks: list[Check], out_dir: Path) -> None:
             f"> {SITE.tagline} An automated fact-check publication where every "
             "article is one claim, verified against independent sources by "
             f"[Lenz]({SITE.lenz_home}), an independent fact-checking engine. "
-            "Every article carries schema.org ClaimReview JSON-LD (the "
-            "canonical verdict lives in `alternateName`)."
+            "Each article's headline states the key finding the evidence "
+            "established; the checked claim and its canonical verdict sit "
+            "directly beneath it. Every article carries schema.org ClaimReview "
+            "JSON-LD (`claimReviewed` is the claim; the canonical verdict "
+            "lives in `alternateName`)."
         ),
         "",
         "## Sections",
@@ -590,9 +679,13 @@ def _write_llms_txt(checks: list[Check], out_dir: Path) -> None:
     # A small, always-fresh sample of actual articles so an agent that reads
     # only this file has concrete, citable URLs — the exhaustive index is
     # llms-full.txt under Optional.
+    # Link text = the finding (the citable fact); the claim + verdict stay
+    # adjacent in the annotation so the verdict never reads as rating the
+    # finding (invariant 1).
     for check in checks[:LLMS_LATEST_COUNT]:
         lines.append(
-            f"- [{_md_link_text(check.claim)}]({check.url}): {check.verdict.key}"
+            f"- [{_md_link_text(check.headline)}]({check.url}) — "
+            f"checked claim: “{_trim(check.claim, 120)}” ({check.verdict.key})"
         )
     lines += [
         "",
@@ -600,8 +693,8 @@ def _write_llms_txt(checks: list[Check], out_dir: Path) -> None:
         "",
         (
             f"- [Full claim index]({SITE.base_url}/llms-full.txt): every check "
-            "as plain text — claim, verdict, summary, top sources. One file, "
-            "built for bulk ingestion."
+            "as plain text — claim, verdict, key finding, summary, top "
+            "sources. One file, built for bulk ingestion."
         ),
         f"- [Atom feed]({SITE.base_url}/feed.xml): the {FEED_SIZE} newest checks.",
         f"- [Sitemap index]({SITE.base_url}/sitemap.xml): every URL on the site.",
@@ -631,9 +724,16 @@ def _write_llms_full_txt(checks: list[Check], out_dir: Path) -> None:
     for check in checks:
         summary_paras = check.summary_paragraphs
         summary = summary_paras[0] if summary_paras else ""
+        # CLAIM before VERDICT keeps the binding unambiguous for an ingesting
+        # model; FINDING is the standalone citable sentence (omitted until
+        # the upstream backfill supplies it).
         block = [
             f"CLAIM: {check.claim}",
             f"VERDICT: {check.verdict.key} ({check.verdict.bs_label})",
+        ]
+        if check.has_finding:
+            block.append(f"FINDING: {check.key_finding}")
+        block += [
             f"SUMMARY: {summary}",
             f"URL: {check.url}",
             f"LENZ: {check.lenz_url}",

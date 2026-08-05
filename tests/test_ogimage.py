@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from isthisbs import content, ogimage
-from isthisbs.config import VERDICTS
+from isthisbs.config import og_content_key
 
 
 @pytest.fixture(autouse=True)
@@ -34,11 +34,10 @@ def offline_fonts(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_render_card_dimensions_all_verdicts():
-    for verdict in VERDICTS.values():
-        img = ogimage.render_card("Some claim under examination.", verdict)
-        assert isinstance(img, Image.Image)
-        assert img.size == (1200, 630)
+def test_render_card_dimensions():
+    img = ogimage.render_card("Some established finding.")
+    assert isinstance(img, Image.Image)
+    assert img.size == (1200, 630)
 
 
 def test_render_site_card_dimensions():
@@ -47,7 +46,7 @@ def test_render_site_card_dimensions():
 
 
 def test_render_card_offline_uses_no_downloaded_fonts(tmp_path):
-    ogimage.render_card("Claim", next(iter(VERDICTS.values())))
+    ogimage.render_card("Some established finding.")
     # Offline: the font map degraded to empty; the fonts dir has no TTFs.
     assert ogimage._font_paths == {}
 
@@ -73,9 +72,12 @@ def test_generate_writes_cards_and_site(tmp_path, make_detail):
     # Every check card + the site card were newly rendered.
     assert rendered == len(checks) + 1
     for check in checks:
-        card = out_dir / "og" / f"{check.verification_id}.png"
-        assert card.is_file()
-        assert Image.open(card).size == (1200, 630)
+        # Hashed public name (what the meta tags reference) + legacy copy.
+        hashed = out_dir / "og" / check.og_path.rsplit("/", 1)[1]
+        legacy_card = out_dir / "og" / f"{check.verification_id}.png"
+        assert hashed.is_file() and legacy_card.is_file()
+        assert hashed.read_bytes() == legacy_card.read_bytes()
+        assert Image.open(hashed).size == (1200, 630)
     site = out_dir / "og" / ogimage.SITE_CARD_NAME
     assert site.is_file()
     assert Image.open(site).size == (1200, 630)
@@ -113,13 +115,33 @@ def test_copy_cached_republishes_both_site_paths(tmp_path, make_detail):
     assert site.is_file() and legacy.is_file()
     assert site.read_bytes() == legacy.read_bytes()
     for check in checks:
+        # Both the hashed public name and the legacy copy must ship — the
+        # meta tags reference the hashed one.
+        assert (fresh / "og" / check.og_path.rsplit("/", 1)[1]).is_file()
         assert (fresh / "og" / f"{check.verification_id}.png").is_file()
-    assert copied == len(checks) + 2  # every card, plus the site card twice
+    assert copied == 2 * len(checks) + 2  # two names per card + site card twice
 
 
-def test_generate_content_key_is_deterministic():
-    a = ogimage._content_key("same claim", "False")
-    b = ogimage._content_key("same claim", "False")
-    c = ogimage._content_key("other claim", "False")
+def test_content_key_is_deterministic_and_content_addressed():
+    a = og_content_key("same finding")
+    b = og_content_key("same finding")
+    c = og_content_key("other finding")
     assert a == b
     assert a != c
+
+
+def test_backfilled_finding_changes_public_og_url(make_detail):
+    """The one-time flip: a claim gaining its key_finding must mint a NEW
+    public card URL (social scrape caches key on the URL)."""
+    before = content.build_checks([make_detail(verification_id="flip0001")])[0]
+    after = content.build_checks(
+        [
+            make_detail(
+                verification_id="flip0001",
+                key_finding="The actual figure is one tenth of the claimed value.",
+            )
+        ]
+    )[0]
+    assert before.og_path != after.og_path
+    # Stable across recomputation — a routine rebuild never changes the URL.
+    assert after.og_path == after.og_path

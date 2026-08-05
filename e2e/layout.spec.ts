@@ -222,6 +222,46 @@ test("search returns results", async ({ page, request }) => {
 });
 
 // --------------------------------------------------------------------------
+// Finding-first invariants: the verdict never renders without the claim
+// adjacent (article claim block; card claim line), and share meta carries
+// the hashed OG card + alt text.
+// --------------------------------------------------------------------------
+test("article: claim block binds quoted claim to the meter under the finding H1", async ({ page }) => {
+  await page.goto(articlePath);
+  const block = page.locator(".claim-block");
+  await expect(block).toBeVisible();
+  // The meter (verdict) lives INSIDE the claim block, after the claim text.
+  await expect(block.locator(".claim-block__claim")).toBeVisible();
+  await expect(block.locator(".meter")).toBeVisible();
+  // The H1 (the finding) precedes the claim block in document order.
+  const order = await page.evaluate(() => {
+    const h1 = document.querySelector("h1")!;
+    const block = document.querySelector(".claim-block")!;
+    return h1.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING;
+  });
+  expect(order, "claim block should follow the H1").toBeTruthy();
+});
+
+test("cards: the verdict pill sits inside the claim line, never alone", async ({ page }) => {
+  await page.goto(sectionPath);
+  const cards = page.locator(".check-card");
+  const n = await cards.count();
+  expect(n).toBeGreaterThan(0);
+  for (let i = 0; i < Math.min(n, 6); i++) {
+    const card = cards.nth(i);
+    await expect(card.locator(".check-card__claim .bs-pill")).toHaveCount(1);
+  }
+});
+
+test("article: og:image is content-hashed and carries alt text", async ({ page }) => {
+  await page.goto(articlePath);
+  const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+  expect(ogImage, "og:image should use the hashed public card name").toMatch(/\/og\/[a-z0-9]+-[0-9a-f]{12}\.png$/);
+  const alt = await page.locator('meta[property="og:image:alt"]').getAttribute("content");
+  expect(alt).toContain("Fact check:");
+});
+
+// --------------------------------------------------------------------------
 // Attribution CTAs: same voice (font/size), so the ↗ arrows match.
 // --------------------------------------------------------------------------
 test("attribution CTAs share the readlink font metrics", async ({ page }) => {

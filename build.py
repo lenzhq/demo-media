@@ -91,6 +91,54 @@ def _make_client():
 
 
 # --------------------------------------------------------------------------- #
+# key_finding coverage gate
+# --------------------------------------------------------------------------- #
+
+#: Skip-gate threshold: a small number of finding-less checks (a race with the
+#: upstream backfill) is skipped loudly; a LARGE fraction is the signature of a
+#: stale cache or partial backfill — publishing would shrink the site and 404
+#: existing article URLs, so the build fails instead.
+_MISSING_FINDINGS_MAX_FRACTION = 0.05
+
+
+def _apply_findings_gate(checks: list) -> list | None:
+    """Drop checks without a ``key_finding``; ``None`` = fail the build.
+
+    Finding-less checks never publish (the whole site is finding-first — there
+    is no claim-headline rendering path anymore). Normally the skip count is
+    zero: upstream generates the finding with every verdict and the backfill
+    covered the back catalog. ``ALLOW_PARTIAL_FINDINGS=1`` overrides the
+    mass-skip failure during the migration window itself.
+    """
+    missing = sum(1 for c in checks if not c.has_finding)
+    if not missing:
+        return checks
+    total = len(checks)
+    fraction = missing / total
+    if (
+        fraction > _MISSING_FINDINGS_MAX_FRACTION
+        and os.environ.get("ALLOW_PARTIAL_FINDINGS") != "1"
+    ):
+        logger.error(
+            "%d/%d checks (%.1f%%) lack key_finding — the catalog looks "
+            "half-migrated (stale cache or partial upstream backfill). "
+            "Publishing would drop their existing URLs. Bust the cache and "
+            "refetch, or set ALLOW_PARTIAL_FINDINGS=1 to skip them anyway.",
+            missing,
+            total,
+            fraction * 100,
+        )
+        return None
+    logger.warning(
+        "Skipping %d/%d check(s) without key_finding — they will not be "
+        "published this build.",
+        missing,
+        total,
+    )
+    return [c for c in checks if c.has_finding]
+
+
+# --------------------------------------------------------------------------- #
 # Search (Pagefind) — optional, best-effort.
 # --------------------------------------------------------------------------- #
 
@@ -162,9 +210,13 @@ def build(args: argparse.Namespace) -> int:
     with _Stage("content"):
         raw = fetch.load_raw(cache_dir)
         checks = content.build_checks(raw)
+    checks = _apply_findings_gate(checks) if checks else checks
+    if checks is None:
+        return 1
     if not checks:
         logger.error(
-            "No checks to render (cache at %s is empty or fully filtered out). "
+            "No checks to render (cache at %s is empty or fully filtered out — "
+            "note that checks without a key_finding never publish). "
             "Run without --skip-fetch to populate the cache first.",
             cache_dir,
         )

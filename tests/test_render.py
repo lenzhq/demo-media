@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from isthisbs import content, render
+from isthisbs import content, render, seo
 from isthisbs.config import SITE, VERDICTS
 
 _H1_RE = re.compile(r"<h1[ >]")
@@ -225,18 +225,21 @@ def test_ga_never_fetched_during_initial_render(tmp_path, checks, monkeypatch):
 
 
 def test_article_serp_contract(tmp_path, checks):
-    """SEO round 2: Fact-Check title with verdict; verdict-first description
-    with a receipts count. This shape is deliberate — see render.py."""
+    """Finding-first SERP shape: the headline titles the page (no verdict —
+    it would read as rating the finding), and the claim-anchored description
+    binds claim + verdict + receipts count. Deliberate — see render.py/seo.py."""
     out = tmp_path / "dist-serp"
     render.render_site(checks, out)
     check = checks[0]
     html = (out / check.path.lstrip("/") / "index.html").read_text(encoding="utf-8")
-    assert "<title>Fact Check: " in html
-    assert f" — {check.verdict.key}</title>" in html
-    assert f'content="Verdict: {check.verdict.key}. ' in html
+    assert " — Fact Check</title>" in html
+    assert f" — {check.verdict.key}</title>" not in html
+    assert 'content="We checked: “' in html
+    assert f"” Verdict: {check.verdict.key}." in html
     if check.sources:
         assert f"Checked against {len(check.sources)} independent sources." in html
     assert 'property="og:site_name"' in html
+    assert 'property="og:image:alt"' in html
 
 
 def test_filed_under_links_only_topic_entities(tmp_path, make_detail):
@@ -337,63 +340,38 @@ def test_x_bot_promotion_surfaces(tmp_path, checks):
 
 
 # --------------------------------------------------------------------------- #
-# Meta description sentence extraction
+# Meta description — claim-anchored template
 # --------------------------------------------------------------------------- #
 
-# Second paragraph only exists to clear ARTICLE_MIN_SUMMARY_CHARS; the meta
-# description is built from the first paragraph alone.
-_FILLER_PARA = (
-    "Additional context follows in later paragraphs, which exist purely to "
-    "clear the editorial minimum-summary length and never appear in the "
-    "meta description under test."
-)
 
-
-def _desc_for(make_detail, first_para: str) -> str:
-    doc = make_detail(executive_summary=f"{first_para}\n\n{_FILLER_PARA}")
+def _desc_for(make_detail, **over) -> str:
+    doc = make_detail(**over)
     (check,) = content.build_checks([doc])
-    return render._meta_description(check)
+    return seo.meta_description(check)
 
 
-def test_meta_description_survives_us_abbreviation(make_detail):
-    desc = _desc_for(
-        make_detail,
-        "The U.S. Senate never voted on the measure, and the bill died in committee.",
-    )
-    assert "U.S. Senate never voted" in desc
-    assert "bill died in committee" in desc
+def test_meta_description_is_claim_anchored(make_detail):
+    desc = _desc_for(make_detail, claim="The moon is made of cheese.", verdict="False")
+    assert desc.startswith("We checked: “The moon is made of cheese.” Verdict: False.")
+    assert desc.endswith("independent sources.")
 
 
-def test_meta_description_survives_honorific_and_initials(make_detail):
-    desc = _desc_for(
-        make_detail,
-        "Dr. Jonas E. Salk announced the trial results to reporters in April 1955.",
-    )
-    assert "announced the trial results" in desc
+def test_meta_description_strips_terminal_punctuation(make_detail):
+    """A claim's own '?' / '.' must not double with the template's period."""
+    desc = _desc_for(make_detail, claim="Is the moon made of cheese?")
+    assert "cheese.” Verdict:" in desc
+    assert "?.”" not in desc and "?”" not in desc
 
 
-def test_meta_description_survives_eg_abbreviation(make_detail):
-    desc = _desc_for(
-        make_detail,
-        "The post misquotes several agencies, e.g. NASA and NOAA, on sea level rise.",
-    )
-    assert "NASA and NOAA, on sea level rise" in desc
+def test_meta_description_truncates_long_claim_within_budget(make_detail):
+    long_claim = "A remarkably long claim about many things " * 8
+    desc = _desc_for(make_detail, claim=long_claim)
+    assert len(desc) <= 175  # ~158 budget + tolerance for the fixed suffix
+    assert "…” Verdict:" in desc  # ellipsized quote closes cleanly, no double period
 
 
-def test_meta_description_extends_past_stub_first_sentence(make_detail):
-    desc = _desc_for(
-        make_detail,
-        "The claim is false. Independent audits from three labs found no "
-        "such compound.",
-    )
-    assert "Independent audits from three labs" in desc
-
-
-def test_meta_description_still_stops_at_real_boundary(make_detail):
-    desc = _desc_for(
-        make_detail,
-        "The figure overstates measured warming roughly threefold since 1990. "
-        "Second sentence should not leak into the description.",
-    )
-    assert "threefold since 1990." in desc
-    assert "Second sentence" not in desc
+def test_meta_description_no_sources_drops_receipts_suffix(make_detail):
+    # sources=[] fails the editorial floor, so build the Check directly.
+    desc = seo.claim_anchored_description("Some claim", "Mixed", 0)
+    assert "independent sources" not in desc
+    assert desc.endswith("Verdict: Mixed.")

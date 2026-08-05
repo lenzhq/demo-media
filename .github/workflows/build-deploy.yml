@@ -42,13 +42,19 @@ jobs:
       # Persist the incremental fetch cache across runs so each build only
       # fetches new/changed claims. restore-keys makes every run reuse the
       # latest available cache even when the primary key misses.
+      #
+      # The version segment ("v2") is the cache-schema bust lever: bump it when
+      # cached detail docs must be refetched wholesale (they only refresh on a
+      # moved modified_at otherwise). v2 = key_finding migration — the upstream
+      # backfill writes the column without touching modified_at, so the old
+      # cache would never pick the field up via restore-keys.
       - name: Restore incremental cache
         uses: actions/cache@v4
         with:
           path: .cache
-          key: isthisbs-cache-${{ github.run_id }}
+          key: isthisbs-cache-v2-${{ github.run_id }}
           restore-keys: |
-            isthisbs-cache-
+            isthisbs-cache-v2-
 
       - name: Install (with search extra for Pagefind)
         run: pip install -e ".[search]"

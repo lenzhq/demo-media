@@ -72,6 +72,7 @@ def _build_detail(
     verdict: str,
     lenz_score: int | None,
     executive_summary: str,
+    key_finding: str,
     created_at: str,
     modified_at: str,
     language: str,
@@ -90,6 +91,7 @@ def _build_detail(
         "confidence": "high",
         "lenz_score": lenz_score,
         "executive_summary": executive_summary,
+        "key_finding": key_finding,
         "created_at": created_at,
         "modified_at": modified_at,
         "language": language,
@@ -128,6 +130,9 @@ def make_detail() -> Callable[..., dict[str, Any]]:
         verdict: str = "False",
         lenz_score: int | None = 2,
         executive_summary: str = _DEFAULT_SUMMARY,
+        # Non-empty by default: published checks always carry a finding (the
+        # build gate skips finding-less ones). Skip-path cases pass ''.
+        key_finding: str = "The claimed figure is contradicted by the primary data.",
         created_at: str = "2026-07-20T12:00:00Z",
         modified_at: str | None = None,
         language: str = "en",
@@ -171,6 +176,7 @@ def make_detail() -> Callable[..., dict[str, Any]]:
             verdict=verdict,
             lenz_score=lenz_score,
             executive_summary=executive_summary,
+            key_finding=key_finding,
             created_at=created_at,
             modified_at=modified_at if modified_at is not None else created_at,
             language=language,
@@ -208,6 +214,9 @@ def sample_docs(make_detail) -> list[dict[str, Any]]:
             panel_agreement="split",
             created_at="2026-07-22T09:00:00Z",
             entities=[{"name": "Hydration", "qid": "Q188486"}],
+            key_finding=(
+                "Daily water needs vary by person; no fixed count is required."
+            ),
         ),
         make_detail(
             claim="The Great Wall of China is visible from space with the naked eye.",
@@ -242,6 +251,7 @@ def sample_docs(make_detail) -> list[dict[str, Any]]:
             lenz_score=10,
             created_at="2026-07-18T09:00:00Z",
             entities=[{"name": "Water", "qid": "Q283"}],
+            key_finding="Water boils at 100 degrees Celsius at sea level.",
         ),
         # Unicode + very long claim, missing lenz_score, no entities/sources.
         make_detail(
