@@ -16,12 +16,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ check.headline|truncate(70) }} — {{ SITE.name }}</title>
+  <title>{{ check.headline }} — {{ SITE.name }}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="canonical" href="{{ check.url }}">
   <meta name="robots" content="noindex">
   <meta property="og:type" content="article">
-  <meta property="og:title" content="{{ check.headline|truncate(110) }}">
+  <meta property="og:title" content="{{ check.headline }}">
   {#- Claim-anchored (shared with the article's snippet): with the finding as
       the title, a bare verdict here would read as rating the finding. -#}
   <meta property="og:description" content="{{ meta_description }}">
