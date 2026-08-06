@@ -1,12 +1,16 @@
 {#
-  Check card (DESIGN.md §5). Two variants:
-    ""     — default feed card: kicker, headline, claim+pill line.
-    "row"  — compact list row (rails/feeds): kicker, headline, claim+pill line.
+  Check card (DESIGN.md §5). Three variants:
+    ""         — default feed card: kicker, headline, claim+pill line.
+    "row"      — compact list row (section blocks, feeds): same anatomy, tighter.
+    "headline" — headline stack (the Fresh Checks rail): kicker + linked
+                 finding ONLY — no claim, no pill, no clamp. The invariants
+                 allow it: only the finding may stand alone, and with no
+                 verdict shown there is nothing to mis-bind.
 
-  The headline is the KEY FINDING (our reporting); the verdict pill rates the
-  CLAIM, so it always sits on the same line as the quoted claim (invariant 1
-  — a pill may never sit alone under the finding). Checks without a
-  key_finding never publish (build.py gate), so there is no fallback shape.
+  Everywhere else the headline is the KEY FINDING (our reporting); the verdict
+  pill rates the CLAIM, so it always sits on the same line as the quoted claim
+  (invariant 1 — a pill may never sit alone under the finding). Checks without
+  a key_finding never publish (build.py gate), so there is no fallback shape.
 
   `heading` sets the headline element (h2 in top-level feeds, h3 when the card
   sits under a section-block h2) to keep heading nesting correct.
@@ -30,10 +34,12 @@
   <{{ heading }} class="check-card__title">
     <a href="{{ check.path }}">{{ check.headline }}</a>
   </{{ heading }}>
+  {% if variant != "headline" %}
   <p class="check-card__claim">
     <span class="check-card__claim-label">Claim:</span>
     <q>{{ check.claim|truncate(80, False, '…') }}</q>
     {{ pill(check) }}
   </p>
+  {% endif %}
 </article>
 {% endmacro %}
