@@ -12,6 +12,9 @@
   (invariant 1 — a pill may never sit alone under the finding). Checks without
   a key_finding never publish (build.py gate), so there is no fallback shape.
 
+  `claim_chars` sizes the claim excerpt to the card's column (80 default;
+  wider columns pass more — the home section blocks fill two text lines).
+
   `heading` sets the headline element (h2 in top-level feeds, h3 when the card
   sits under a section-block h2) to keep heading nesting correct.
 
@@ -20,7 +23,7 @@
 #}
 {% from "_pill.html" import pill %}
 
-{% macro card(check, variant="", heading="h3", show_section=True) %}
+{% macro card(check, variant="", heading="h3", show_section=True, claim_chars=80) %}
 <article class="check-card{% if variant %} check-card--{{ variant }}{% endif %}"
          data-verdict="{{ check.verdict_key }}"
          data-pagefind-filter="verdict:{{ check.verdict_key }}">
@@ -37,7 +40,7 @@
   {% if variant != "headline" %}
   <p class="check-card__claim">
     <span class="check-card__claim-label">Claim:</span>
-    <q>{{ check.claim|truncate(80, False, '…') }}</q>
+    <q>{{ check.claim|truncate(claim_chars, False, '…') }}</q>
     {{ pill(check) }}
   </p>
   {% endif %}
