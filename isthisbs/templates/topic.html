@@ -23,7 +23,7 @@
 {% if checks %}
 <div class="feed">
   {% for check in checks %}
-  {{ card(check, heading="h2") }}
+  {{ card(check, heading="h2", claim_chars=240) }}
   {% endfor %}
 </div>
 {% else %}
