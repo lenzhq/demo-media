@@ -26,7 +26,10 @@ if [[ -z "${CHECK_DOMAIN+x}" ]]; then
   fi
 fi
 
-CURL="curl -s --max-time 45"
+# --retry covers transient network errors; the release rollover can also
+# briefly serve empty bodies from the CDN, so content checks that fire
+# seconds after deploy retry at the check level too (see llms.txt).
+CURL="curl -s --max-time 45 --retry 3 --retry-delay 2 --retry-all-errors"
 PASS=0
 FAIL=0
 
@@ -59,7 +62,12 @@ fi
 # --- 3. SEO / AEO assets ---------------------------------------------------
 children=$(${CURL} "${BASE_URL}/sitemap.xml" | grep -o '<loc>' | wc -l | tr -d ' ')
 [[ "${children}" -ge 3 ]] && ok "sitemap index has ${children} children" || bad "sitemap index thin (${children})"
-${CURL} "${BASE_URL}/llms.txt" | head -1 | grep -q '^# ' && ok "llms.txt populated" || bad "llms.txt missing/empty"
+llms_ok=""
+for _ in 1 2 3; do
+  ${CURL} "${BASE_URL}/llms.txt" | head -1 | grep -q '^# ' && { llms_ok=1; break; }
+  sleep 5
+done
+[[ -n "${llms_ok}" ]] && ok "llms.txt populated" || bad "llms.txt missing/empty"
 llms_full=$(${CURL} -I "${BASE_URL}/llms-full.txt" | grep -i content-length | grep -o '[0-9]*' | tr -d '\r')
 [[ "${llms_full:-0}" -gt 100000 ]] && ok "llms-full.txt ${llms_full} bytes" || bad "llms-full.txt too small (${llms_full:-0})"
 ${CURL} "${BASE_URL}/robots.txt" | grep -q '^Sitemap:' && ok "robots points at sitemap" || bad "robots missing Sitemap"
