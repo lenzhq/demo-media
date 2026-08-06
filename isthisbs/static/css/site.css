@@ -422,7 +422,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .claim-block__claim { font-size: var(--fs-standfirst); font-weight: 600; line-height: 1.5;
   margin: 0 0 var(--sp-4); }
 .claim-block .article__verdict { border: 0; padding: 0; margin-bottom: 0; }
-.lead__claim { margin-bottom: var(--sp-4); }
+/* On the lead, the claim group keeps only its TOP rule — a bottom rule
+   before the standfirst read as a boundary to another article. Whitespace
+   alone separates the verdict line from the summary. */
+.lead__claim { margin-bottom: var(--sp-4); border-bottom: 0; padding-bottom: 0; }
 
 /* card claim line — mono metadata: CLAIM label, quoted claim, pill inline
    (the pill may never sit alone under the finding). */
