@@ -93,6 +93,26 @@ def test_card_claim_line_binds_pill_to_claim(tmp_path, make_detail):
         assert "bs-pill" in cm.group(1)
 
 
+def test_fresh_checks_rail_is_headline_only(tmp_path, make_detail):
+    """The rail is a headline stack: linked findings only — no claim line,
+    no pill (only the finding may stand alone), no truncation."""
+    docs = [
+        make_detail(
+            key_finding=f"Distinct finding number {i} that the rail must show in full.",
+            created_at=f"2026-07-{10 + i:02d}T00:00:00Z",
+        )
+        for i in range(8)
+    ]
+    checks = content.build_checks(docs)
+    render.render_site(checks, tmp_path)
+    home = (tmp_path / "index.html").read_text()
+    rail = home.split('class="rail"')[1].split("</aside>")[0]
+    assert "check-card--headline" in rail
+    assert "check-card__claim" not in rail
+    assert "bs-pill" not in rail
+    assert "…" not in rail  # no truncation in the headline stack
+
+
 def test_home_lead_keeps_full_meter_in_claim_group(tmp_path, make_detail):
     check, _, home = _render_one(tmp_path, make_detail, key_finding=FINDING)
     lead = home.split('class="lead"')[1].split("</article>")[0]

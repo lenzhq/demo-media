@@ -347,6 +347,14 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
+/* headline variant: the Fresh Checks rail — a newspaper headline stack.
+   Kicker + linked finding only (no claim line, no pill: only the finding
+   may stand alone), and NO clamp — the full finding always wraps. */
+.check-card--headline { padding: var(--sp-3) 0; gap: var(--sp-1); }
+.check-card--headline .check-card__title {
+  font-size: 1.0625rem; font-weight: 700; line-height: 1.3;
+}
+
 /* ---- Feed / bands ------------------------------------------------------ */
 .feed { margin-bottom: var(--sp-8); }
 .feed__empty { color: var(--ink-60); font-family: var(--font-mono); font-size: var(--fs-meta);
