@@ -72,7 +72,9 @@
     </div>
     <div class="rail__list">
       {% for check in sb.checks %}
-      {{ card(check, variant="row", heading="h3") }}
+      {#- Two-column blocks are wide enough for two full claim lines — the
+          80-char default orphaned a couple of words on line two. -#}
+      {{ card(check, variant="row", heading="h3", claim_chars=120) }}
       {% endfor %}
     </div>
   </section>
