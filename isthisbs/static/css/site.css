@@ -428,10 +428,13 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 .lead__claim { margin-bottom: var(--sp-4); border-bottom: 0; padding-bottom: 0; }
 
 /* card claim line — mono metadata: CLAIM label, quoted claim, pill inline
-   (the pill may never sit alone under the finding). */
+   (the pill may never sit alone under the finding). Inline FLOW, not flex:
+   flex items are atomic boxes, so a wrapped claim's box filled the row and
+   pushed the pill to its own line even when the last text line had room —
+   inline flow lets the pill tuck in after the claim like the next word. */
 .check-card__claim { font-family: var(--font-mono); font-size: var(--fs-meta);
-  color: var(--ink-60); margin: 0;
-  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+  color: var(--ink-60); margin: 0; line-height: 1.6; }
+.check-card__claim .bs-pill { margin-left: var(--sp-1); vertical-align: 1px; }
 .check-card__claim-label { font-size: var(--fs-label); text-transform: uppercase;
   letter-spacing: 0.08em; }
 .check-card__claim q { quotes: "\201C" "\201D"; }
