@@ -13,14 +13,18 @@
 {% set v = check.verdict %}
 <div class="meter {{ v.css }}" role="img"
      aria-label="BS meter: {{ v.bs_label }}. Verdict: {{ v.key }}.">
+  {#- At the extreme verdicts the reading line below would duplicate the
+      axis label sitting directly above it, so the occupied end's label is
+      suppressed — the opposite end plus the marker keep the scale oriented.
+      (The track is decorative; the aria-label carries the full reading.) -#}
   <div class="meter__track" aria-hidden="true">
-    <span class="meter__end">NOT BS</span>
+    <span class="meter__end{{ ' meter__end--occupied' if v.rank == 1 else '' }}">NOT BS</span>
     <ol class="meter__stops">
       {% for stop in VERDICT_ORDER %}
       <li class="meter__stop{{ ' is-active' if stop.rank == v.rank else '' }}"></li>
       {% endfor %}
     </ol>
-    <span class="meter__end">TOTAL BS</span>
+    <span class="meter__end{{ ' meter__end--occupied' if v.rank == 5 else '' }}">TOTAL BS</span>
   </div>
   <p class="meter__verdict" aria-hidden="true">
     <span class="meter__label">{{ v.bs_label }}</span

@@ -93,6 +93,30 @@ def test_card_claim_line_binds_pill_to_claim(tmp_path, make_detail):
         assert "bs-pill" in cm.group(1)
 
 
+def test_meter_suppresses_occupied_end_label(tmp_path, make_detail):
+    """At extreme verdicts the reading line duplicates the axis label above
+    it, so the occupied end is suppressed; middle verdicts keep both ends."""
+    docs = [
+        make_detail(verification_id="mtrfalse", verdict="False"),
+        make_detail(verification_id="mtrmixed", verdict="Mixed"),
+        make_detail(verification_id="mtrtrue1", verdict="True"),
+    ]
+    checks = content.build_checks(docs)
+    render.render_site(checks, tmp_path)
+    by_id = {c.verification_id: c for c in checks}
+
+    def meter_of(vid):
+        html = (tmp_path / by_id[vid].path.lstrip("/") / "index.html").read_text()
+        return html.split('class="meter ')[1].split("</div>")[0]
+
+    false_track = meter_of("mtrfalse")
+    assert false_track.count("meter__end--occupied") == 1
+    assert 'meter__end--occupied">TOTAL BS' in false_track
+    true_track = meter_of("mtrtrue1")
+    assert 'meter__end--occupied">NOT BS' in true_track
+    assert "meter__end--occupied" not in meter_of("mtrmixed")
+
+
 def test_fresh_checks_rail_is_headline_only(tmp_path, make_detail):
     """The rail is a headline stack: linked findings only — no claim line,
     no pill (only the finding may stand alone), no truncation."""

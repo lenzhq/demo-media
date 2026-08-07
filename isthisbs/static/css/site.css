@@ -292,6 +292,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
   font-size: 0.625rem; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-60); white-space: nowrap;
 }
+/* The marker's own end: its label would duplicate the reading line directly
+   below (True/False = over half the catalog). visibility keeps the track
+   geometry identical across verdicts, so stacked meters stay aligned. */
+.meter__end--occupied { visibility: hidden; }
 .meter__stops {
   position: relative; display: flex; align-items: center; justify-content: space-between;
   gap: var(--sp-2); list-style: none; margin: 0; padding: 0; flex: 1; min-height: 18px;
