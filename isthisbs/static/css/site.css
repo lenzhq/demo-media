@@ -317,6 +317,11 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--fill) 35%, transparent);
   transform: scale(1.7); z-index: 1;
 }
+/* Edge stops scale INWARD: center-origin scaling bulges ~3.5px past the
+   track box, which the end labels used to buffer — with the occupied end
+   collapsed (True/False), the marker poked past the text margin. */
+.meter__stop:first-child { transform-origin: left center; }
+.meter__stop:last-child { transform-origin: right center; }
 .meter__verdict { margin: var(--sp-3) 0 0; }
 .meter__label {
   font-family: var(--font-mono); font-weight: 700; font-size: 1rem;
