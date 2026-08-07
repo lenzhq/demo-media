@@ -1,6 +1,6 @@
 # IsThisBS? — Project Brief & Execution Plan
 
-> Working name **IsThisBS?** (`isthisbs.org` placeholder — configurable). An independent, public, MIT-licensed **editorial fact-check media site** built entirely on the **public Lenz API via the `lenz-io` Python SDK**. Completely standalone: its own repo, domain, brand, and design. The only thing it takes from Lenz is the database of public verified claims. Also the reference implementation of "how to build something real on the Lenz API."
+> Working name **IsThisBS?**, live at `isthisbs.org`. An independent, public, MIT-licensed **editorial fact-check media site** built entirely on the **public Lenz API via the `lenz-io` Python SDK**. Completely standalone: its own repo, domain, brand, and design. The only thing it takes from Lenz is the database of public verified claims. Also the reference implementation of "how to build something real on the Lenz API."
 
 ## Context — why this exists
 

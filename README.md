@@ -9,7 +9,7 @@ up. It's a static website regenerated on a schedule from the public
 Lenz**, an independent fact-checking engine; this repo is just the newsroom
 that renders them.
 
-- Live site: **https://isthisbs.org** *(pending launch)*
+- Live site: **https://isthisbs.org**
 - Powered by the Lenz public API via the [`lenz-io`](https://pypi.org/project/lenz-io/) Python SDK
 - Public, MIT-licensed, and secret-free — it doubles as the **reference
   implementation** for building on the Lenz API.

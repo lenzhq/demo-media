@@ -23,6 +23,9 @@ firebase-debug.log
 # Local env (keyless by design — nothing should live here, but never commit it)
 .env
 
+# Local scratch (pre-push logs, visual-QA screenshots)
+tmp/
+
 # OS / editor
 .DS_Store
 .idea/
