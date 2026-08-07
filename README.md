@@ -179,3 +179,7 @@ the full analysis for every claim.
 - Lenz: <https://lenz.io>
 - API docs: <https://lenz.io/developers>
 - SDKs: [Python](https://pypi.org/project/lenz-io/) · [Node](https://www.npmjs.com/package/lenz-io)
+
+## Maintainer
+
+[@Pavel12431432](https://github.com/Pavel12431432)
