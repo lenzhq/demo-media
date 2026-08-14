@@ -512,7 +512,10 @@ main.wrap { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
 
 .receipts { margin: 0; padding-left: 1.4em; }
 .receipt { margin-bottom: var(--sp-4); }
-.receipt__title { font-weight: 600; }
+/* Source titles come from upstream extraction, so a PDF can hand us one
+   63-char run with no space and no hyphen to break after — that single token
+   then widens the page and the mobile overflow invariant fails. */
+.receipt__title { font-weight: 600; overflow-wrap: anywhere; }
 .receipt__meta { font-family: var(--font-mono); font-size: var(--fs-meta); color: var(--ink-60);
   margin: var(--sp-1) 0 0; }
 
