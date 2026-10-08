@@ -132,3 +132,41 @@ def test_live_fetch_never_renders_a_failed_item(failed, monkeypatch):
 
 def test_legacy_failed_body_is_the_error_verdict():
     assert _fx()["failed_legacy"]["verdict"] == "Error"
+
+
+def test_older_shape_output_is_byte_identical_to_origin_main():
+    """Frozen oracle: the pre-change code's outputs over the older-shape cases
+    (provenance inside the file). This tree must reproduce them exactly."""
+    import oracle_run
+
+    frozen = json.loads((_PATH.parent / "origin_main_oracle.json").read_text())
+    assert frozen["provenance"]["origin_main_commit"]
+    fresh = json.dumps(oracle_run.run(), indent=1, sort_keys=True, ensure_ascii=False)
+    expected = json.dumps(
+        frozen["outputs"], indent=1, sort_keys=True, ensure_ascii=False
+    )
+    assert fresh == expected
+
+
+@pytest.mark.parametrize("bad", [5, ["x"], {"a": 1}, True])
+def test_live_non_text_key_finding_is_no_result_and_builders_do_not_crash(
+    bad, monkeypatch
+):
+    body = _fx()["legacy"]["detail"] | {"key_finding": bad}
+    _serve(monkeypatch, body)
+    assert live_core.fetch_detail("a1b2c3d4") is None
+    # the builders themselves tolerate it too
+    assert "<h1></h1>" in live_core.build_live_html(body)
+
+
+def test_live_failure_object_is_no_result(monkeypatch):
+    _serve(monkeypatch, _fx()["failed_canonical"] | {"status": "completed"})
+    assert live_core.fetch_detail("a1b2c3d4") is None
+
+
+def test_live_legacy_body_with_status_failed_but_a_verdict_is_still_served(
+    monkeypatch,
+):
+    """As origin/main did: only the verdict decided."""
+    _serve(monkeypatch, _fx()["legacy"]["detail"] | {"status": "failed"})
+    assert live_core.fetch_detail("a1b2c3d4") is not None
