@@ -89,20 +89,27 @@ def _make_client():
     from isthisbs import __version__
     from isthisbs.config import API_VERSION, API_VERSION_HEADER
 
-    # Self-identify so this demo's build traffic is attributable (and can be
-    # filtered from Lenz's internal signals) rather than looking like a generic
-    # Python SDK user. Mirrors the live claim function's ``isthisbs-claimlive``.
-    return Lenz(
-        base_url=os.environ.get("LENZ_BASE_URL"),
-        http_client=httpx.Client(
-            timeout=httpx.Timeout(30.0),
-            headers={
-                "User-Agent": f"isthisbs-media/{__version__}",
-                API_VERSION_HEADER: API_VERSION,
-                "Accept": "application/json",
-            },
-        ),
+    http = httpx.Client(
+        timeout=httpx.Timeout(30.0),
+        headers={
+            # Self-identify so this demo's build traffic is attributable (and
+            # can be filtered from Lenz's internal signals) rather than
+            # looking like a generic Python SDK user. Mirrors the live claim
+            # function's ``isthisbs-claimlive``.
+            "User-Agent": f"isthisbs-media/{__version__}",
+            API_VERSION_HEADER: API_VERSION,
+            "Accept": "application/json",
+        },
     )
+
+    class _SiteClient(Lenz):
+        # The SDK closes only an HTTP client it created itself; this one is
+        # ours, so closing the Lenz client closes it too.
+        def close(self) -> None:
+            super().close()
+            http.close()
+
+    return _SiteClient(base_url=os.environ.get("LENZ_BASE_URL"), http_client=http)
 
 
 # --------------------------------------------------------------------------- #

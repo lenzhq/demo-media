@@ -263,6 +263,9 @@ def test_the_build_client_sends_the_new_version_and_its_own_agent():
     assert headers["X-Lenz-API-Version"] == API_VERSION
     assert headers["User-Agent"] == f"isthisbs-media/{__version__}"
     assert headers["Accept"] == "application/json"
+    assert not client._client.is_closed
+    client.close()
+    assert client._client.is_closed  # the build's close() releases the pool
 
 
 def test_the_live_function_sends_the_new_version(monkeypatch):
