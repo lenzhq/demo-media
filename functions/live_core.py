@@ -44,15 +44,20 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
             detail = json.load(resp)
     except Exception:
         return None
-    if not detail or not detail.get("claim"):
+    if not isinstance(detail, dict) or not detail.get("claim"):
+        return None
+    # A failed item reads ``status: "failed"`` with a null verdict (newer
+    # shape) or a verdict of "Error" (older shape); neither ever renders.
+    if detail.get("status") == "failed":
         return None
     # Every prod verification carries a key_finding (generated with the
     # verdict; back catalog backfilled). A detail without one is malformed
     # and never renders — the same skip rule as the static build's gate.
-    if not (detail.get("key_finding") or "").strip():
+    if not str(detail.get("key_finding") or "").strip():
         return None
-    if detail.get("verdict") not in VERDICTS:  # Error / unknown never render
-        return None
+    verdict = detail.get("verdict")
+    if not isinstance(verdict, str) or verdict not in VERDICTS:
+        return None  # null / Error / unknown never render
     return detail
 
 
