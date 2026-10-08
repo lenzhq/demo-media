@@ -1,0 +1,187 @@
+"""Runs the legacy-shape cases through whichever tree is first on sys.path.
+
+Used twice: once against a checkout of origin/main to freeze its outputs
+(``tests/fixtures/origin_main_oracle.json``), and by the test suite against
+this tree, which must reproduce them byte for byte. Only code paths that
+exist in both trees are called.
+
+Freeze:  PYTHONPATH=<origin checkout> python tests/oracle_run.py <origin checkout>
+"""
+
+from __future__ import annotations
+
+import copy
+import dataclasses
+import json
+import sys
+import tempfile
+import urllib.request
+from pathlib import Path
+
+FIXTURES = Path(__file__).parent / "fixtures" / "api_shapes.json"
+
+
+def _cases() -> dict:
+    fx = json.loads(FIXTURES.read_text())
+    detail = fx["legacy"]["detail"]
+    item = fx["legacy"]["library_item"]
+    same_day_detail = copy.deepcopy(detail) | {"modified_at": None}
+    same_day_item = copy.deepcopy(item) | {"modified_at": None}
+    error_detail = copy.deepcopy(detail) | {"verdict": "Error", "confidence": "low"}
+    many = copy.deepcopy(detail)
+    many["sources"] = [
+        {
+            "source_name": f"Outlet {i}",
+            "title": f"Report {i} <b>",
+            "url": f"https://example.com/{i}",
+            "snippet": "s",
+            "date": f"2025-01-0{i % 9 + 1}",
+        }
+        for i in range(9)
+    ]
+    return {
+        "details": {
+            "legacy": detail,
+            "same_day": same_day_detail,
+            "error": error_detail,
+            "many_sources": many,
+        },
+        "items": {
+            "legacy": item,
+            "same_day": same_day_item,
+        },
+        "live_bodies": {
+            "valid": detail,
+            "same_day": same_day_detail,
+            "many_sources": many,
+            "error_verdict": error_detail,
+            "error_with_failed_status": error_detail | {"status": "failed"},
+            "valid_with_failed_status": detail | {"status": "failed"},
+            "no_key_finding": {k: v for k, v in detail.items() if k != "key_finding"},
+            "blank_key_finding": detail | {"key_finding": "   "},
+            "unknown_verdict": detail | {"verdict": "Maybe"},
+            "no_claim": detail | {"claim": ""},
+            "empty_object": {},
+            "html_in_strings": detail
+            | {"claim": '<script>x</script> & "q"', "key_finding": " <i>f</i> "},
+        },
+    }
+
+
+def _ser(obj) -> object:
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return _ser(dataclasses.asdict(obj))
+    if isinstance(obj, dict):
+        return {str(k): _ser(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [_ser(v) for v in obj]
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return str(obj)
+
+
+class _Resp:
+    def __init__(self, body) -> None:
+        self._raw = json.dumps(body).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, *a):
+        return self._raw
+
+
+class _List:
+    def __init__(self, items):
+        self.items = items
+        self.total = len(items)
+        self.page_size = 20
+
+
+def run() -> dict:
+    from lenz_io.models import LibraryItem, Verification
+
+    from functions import live_core
+    from isthisbs import content, fetch
+
+    cases = _cases()
+    out: dict = {}
+
+    # parse + filter + floor + sort over each cached detail
+    out["parse_check"] = {}
+    for name, body in cases["details"].items():
+        model = Verification.model_validate(body)
+        doc = {
+            "detail": model.model_dump(mode="json"),
+            "related": [],
+            "fetched_at": "x",
+        }
+        out["parse_check"][name] = _ser(content._parse_check(doc))
+        out["parse_check"][name + ":build_checks"] = _ser(content.build_checks([doc]))
+
+    # fetch.sync over the list items: manifest, stats and stored details
+    class _Lib:
+        def __init__(self, items):
+            self._items = items
+
+        def list(self, page=1, sort="recent"):
+            return _List(self._items if page == 1 else [])
+
+    class _Ver:
+        def get(self, vid):
+            body = cases["details"]["legacy"] | {"verification_id": vid}
+            return Verification.model_validate(body)
+
+        def related(self, vid, limit=5):
+            return _List([])
+
+    class _Client:
+        def __init__(self, items):
+            self.library = _Lib(items)
+            self.verifications = _Ver()
+
+    items = [
+        LibraryItem.model_validate(body | {"verification_id": f"item{i}name"})
+        for i, body in enumerate(cases["items"].values())
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        stats = fetch.sync(_Client(items), Path(tmp))
+        manifest = json.loads((Path(tmp) / "manifest.json").read_text())
+        # second pass against the same cache: what is refetched?
+        stats2 = fetch.sync(_Client(items), Path(tmp))
+        stored = {
+            p.stem: json.loads(p.read_text())["detail"]
+            for p in sorted((Path(tmp) / "claims").glob("*.json"))
+        }
+    out["sync"] = {
+        "first": _ser(stats),
+        "second": _ser(stats2),
+        "manifest": manifest,
+        "stored_details": stored,
+    }
+
+    # live function: what fetch_detail returns and the HTML built from it
+    out["live"] = {}
+    real = urllib.request.urlopen
+    try:
+        for name, body in cases["live_bodies"].items():
+            urllib.request.urlopen = lambda *a, _b=body, **k: _Resp(_b)
+            got = live_core.fetch_detail("a1b2c3d4")
+            entry = {"returned": _ser(got)}
+            if got is not None:
+                entry["html"] = live_core.build_live_html(got)
+            out["live"][name] = entry
+    finally:
+        urllib.request.urlopen = real
+    return out
+
+
+if __name__ == "__main__":
+    root = Path(sys.argv[1]).resolve()
+    import isthisbs
+
+    assert Path(isthisbs.__file__).resolve().is_relative_to(root), isthisbs.__file__
+    json.dump(run(), sys.stdout, indent=1, sort_keys=True, ensure_ascii=False)

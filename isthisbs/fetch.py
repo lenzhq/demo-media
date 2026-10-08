@@ -164,7 +164,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
                 # never let it near the filesystem.
                 continue
             seen.add(vid)
-            modified = item.modified_at or ""
+            modified = _change_key(item)
             cache_file = claims_dir / f"{vid}.json"
 
             # Fast path: manifest agrees on modified_at AND the file is present
@@ -413,6 +413,19 @@ def _write_cache_doc(claims_dir: Path, vid: str, doc: dict[str, Any]) -> None:
     path = claims_dir / f"{vid}.json"
     with path.open("w", encoding="utf-8") as fh:
         json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _change_key(item: object) -> str:
+    """The value that tells us a claim changed since the last build.
+
+    This release still receives the older response shape, so the key is
+    ``modified_at`` exactly as before (existing manifests hold those values;
+    another key would refetch the whole catalog once). ``completed_at`` is
+    used only when the item has no ``modified_at`` attribute at all.
+    """
+    if hasattr(item, "modified_at"):
+        return getattr(item, "modified_at", None) or ""
+    return getattr(item, "completed_at", None) or ""
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, str]:
