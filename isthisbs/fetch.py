@@ -40,7 +40,7 @@ from typing import Any
 from lenz_io import LenzError, LenzRateLimitError
 
 from .config import RELATED_LIMIT
-from .content import VID_RE
+from .content import VID_RE, change_time
 
 logger = logging.getLogger(__name__)
 
@@ -418,14 +418,16 @@ def _write_cache_doc(claims_dir: Path, vid: str, doc: dict[str, Any]) -> None:
 def _change_key(item: object) -> str:
     """The value that tells us a claim changed since the last build.
 
-    This release still receives the older response shape, so the key is
-    ``modified_at`` exactly as before (existing manifests hold those values;
-    another key would refetch the whole catalog once). ``completed_at`` is
-    used only when the item has no ``modified_at`` attribute at all.
+    It is the claim's change time as ``content.change_time`` defines it, so
+    it equals the ``modified_at`` that existing manifests hold, whichever
+    response shape the item came in (the newer one has ``completed_at`` and
+    no ``modified_at``). Another key would refetch the whole catalog once.
     """
-    if hasattr(item, "modified_at"):
-        return getattr(item, "modified_at", None) or ""
-    return getattr(item, "completed_at", None) or ""
+    return change_time(
+        getattr(item, "modified_at", None),
+        getattr(item, "created_at", None),
+        getattr(item, "completed_at", None),
+    )
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, str]:

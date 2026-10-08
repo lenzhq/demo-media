@@ -76,17 +76,32 @@ def _make_client():
     its built-in default (``https://lenz.io/api/v1``), so passing the env var
     through — even when unset — is the correct one-liner. No API key is passed:
     every catalog read this site makes is public and keyless.
+
+    The SDK sends the API version it was released against on every request.
+    This site asks for ``API_VERSION`` instead (the same version the live
+    claim function sends), and the SDK offers no option for it, so the
+    client is handed an ``httpx.Client`` carrying the SDK's own default
+    headers with that one value replaced.
     """
+    import httpx
     from lenz_io import Lenz
 
     from isthisbs import __version__
+    from isthisbs.config import API_VERSION, API_VERSION_HEADER
 
     # Self-identify so this demo's build traffic is attributable (and can be
     # filtered from Lenz's internal signals) rather than looking like a generic
     # Python SDK user. Mirrors the live claim function's ``isthisbs-claimlive``.
     return Lenz(
         base_url=os.environ.get("LENZ_BASE_URL"),
-        user_agent=f"isthisbs-media/{__version__}",
+        http_client=httpx.Client(
+            timeout=httpx.Timeout(30.0),
+            headers={
+                "User-Agent": f"isthisbs-media/{__version__}",
+                API_VERSION_HEADER: API_VERSION,
+                "Accept": "application/json",
+            },
+        ),
     )
 
 

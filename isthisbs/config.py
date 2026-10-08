@@ -62,6 +62,12 @@ class Site:
 
 SITE = Site()
 
+#: The Lenz API response version every call asks for (``X-Lenz-API-Version``):
+#: the build's SDK client and the live claim function send the same value, so
+#: both read one response shape. Change it in this one place.
+API_VERSION = "2026-10-11"
+API_VERSION_HEADER = "X-Lenz-API-Version"
+
 
 # --------------------------------------------------------------------------- #
 # Verdicts — the BS Meter mapping

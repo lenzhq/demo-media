@@ -18,7 +18,13 @@ import re
 import urllib.request
 
 from isthisbs import ogimage
-from isthisbs.config import SITE, VERDICTS, section_for_domain
+from isthisbs.config import (
+    API_VERSION,
+    API_VERSION_HEADER,
+    SITE,
+    VERDICTS,
+    section_for_domain,
+)
 from isthisbs.content import mint_slug
 from isthisbs.seo import claim_anchored_description
 
@@ -38,7 +44,11 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
         return None
     try:
         req = urllib.request.Request(
-            API_BASE + vid, headers={"User-Agent": "isthisbs-claimlive"}
+            API_BASE + vid,
+            headers={
+                "User-Agent": "isthisbs-claimlive",
+                API_VERSION_HEADER: API_VERSION,
+            },
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             detail = json.load(resp)

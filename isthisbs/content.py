@@ -216,6 +216,40 @@ def _parse_dt(value: str | None) -> datetime:
     return datetime.fromtimestamp(0, tz=UTC)
 
 
+def change_time(
+    modified_at: str | None, created_at: str | None, completed_at: str | None
+) -> str:
+    """When a claim last changed, as the site has always rendered it.
+
+    The older response shape sends ``modified_at``: the completion time, set
+    only when the claim completed on a later calendar day (UTC) than it was
+    created, else null. The current shape sends ``completed_at`` (always set)
+    and no ``modified_at``. Both give the same answer here: a ``modified_at``
+    is used as sent; otherwise ``completed_at`` counts only on that same
+    later-day rule. Anything missing or unparseable is ``""`` (no change time).
+    """
+    if isinstance(modified_at, str) and modified_at:
+        return modified_at
+    if not (
+        isinstance(completed_at, str)
+        and completed_at
+        and isinstance(created_at, str)
+        and created_at
+    ):
+        return ""
+    try:
+        completed = _utc(completed_at)
+        created = _utc(created_at)
+    except ValueError:
+        return ""
+    return completed_at if completed.date() > created.date() else ""
+
+
+def _utc(value: str) -> datetime:
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
 def _parse_check(doc: dict[str, Any]) -> Check | None:
     """One cached document → Check, or None if it shouldn't be on the site."""
     d = doc.get("detail") or {}
@@ -270,7 +304,9 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
         executive_summary=(d.get("executive_summary") or "").strip(),
         key_finding=(d.get("key_finding") or "").strip(),
         created_at=d.get("created_at") or "",
-        modified_at=d.get("modified_at") or "",
+        modified_at=change_time(
+            d.get("modified_at"), d.get("created_at"), d.get("completed_at")
+        ),
         language=language,
         section=section_for_domain(d.get("domain")),
         entities=entities,
