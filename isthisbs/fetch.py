@@ -418,14 +418,14 @@ def _write_cache_doc(claims_dir: Path, vid: str, doc: dict[str, Any]) -> None:
 def _change_key(item: object) -> str:
     """The value that tells us a claim changed since the last build.
 
-    Deliberately still ``modified_at`` (the manifest of every existing cache
-    holds those values, so keying on another field would refetch the whole
-    catalog once). ``completed_at`` is only the fallback for a list item that
-    carries no ``modified_at`` at all (the newer response shape).
+    This release still receives the older response shape, so the key is
+    ``modified_at`` exactly as before (existing manifests hold those values;
+    another key would refetch the whole catalog once). ``completed_at`` is
+    used only when the item has no ``modified_at`` attribute at all.
     """
-    return (
-        getattr(item, "modified_at", None) or getattr(item, "completed_at", None) or ""
-    )
+    if hasattr(item, "modified_at"):
+        return getattr(item, "modified_at", None) or ""
+    return getattr(item, "completed_at", None) or ""
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, str]:

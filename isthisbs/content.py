@@ -122,7 +122,7 @@ class Check:
     lenz_score: int | None
     executive_summary: str
     created_at: str  # original ISO string (JSON-LD wants it verbatim)
-    modified_at: str  # completed_at when the API sends it, else modified_at
+    modified_at: str
     language: str
     section: Section
     key_finding: str = ""  # one-sentence established fact ('' pre-backfill)
@@ -270,7 +270,7 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
         executive_summary=(d.get("executive_summary") or "").strip(),
         key_finding=(d.get("key_finding") or "").strip(),
         created_at=d.get("created_at") or "",
-        modified_at=d.get("completed_at") or d.get("modified_at") or "",
+        modified_at=d.get("modified_at") or "",
         language=language,
         section=section_for_domain(d.get("domain")),
         entities=entities,
