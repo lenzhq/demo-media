@@ -7,7 +7,7 @@ import json
 import pytest
 
 # Real SDK exception types — imported (fetch.py already needs the SDK present).
-from lenz_io import LenzError, LenzRateLimitError
+from lenz_io import LenzApiVersionError, LenzError, LenzRateLimitError
 
 from isthisbs import fetch
 from isthisbs.config import PAGE_SIZE
@@ -262,6 +262,25 @@ def test_list_page_error_stops_walk_no_drop(tmp_path, write_cache):
     # Documented intent: an incomplete walk must NOT drop anything; A survives.
     assert stats.dropped == 0
     assert (tmp_path / "claims" / "A.json").exists()
+
+
+def test_api_version_mismatch_is_named_in_the_log(tmp_path, caplog):
+    # lenz-io 3 refuses a reply in another API version. The build must say so
+    # in words (not as an anonymous "page failed"), stop the walk, and drop nothing.
+    client = FakeClient(catalog=[("A", LATER)], detail={"A": _detail_for("A")})
+
+    def _wrong_version(page: int = 1, sort: str = "recent"):
+        raise LenzApiVersionError(api_version="2026-05-13")
+
+    client.library.list = _wrong_version
+    with caplog.at_level("WARNING"):
+        stats = fetch.sync(client, tmp_path)
+    assert stats.errors == 1
+    assert stats.dropped == 0
+    assert any(
+        "2026-05-13" in rec.getMessage() and "out of step" in rec.getMessage()
+        for rec in caplog.records
+    )
 
 
 def test_manifest_written_atomically_and_parses(tmp_path):

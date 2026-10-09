@@ -37,7 +37,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from lenz_io import LenzError, LenzRateLimitError
+from lenz_io import LenzApiVersionError, LenzError, LenzRateLimitError
 
 from .config import RELATED_LIMIT
 from .content import VID_RE, change_time
@@ -141,7 +141,18 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
             # walking rather than guess. Anything already cached stays put — we
             # deliberately do NOT run the drop pass on an incomplete walk
             # (``walk_completed`` stays False).
-            logger.warning("Library list page %d failed: %s", page, exc)
+            if isinstance(exc, LenzApiVersionError):
+                # lenz-io 3 reads one API version only; the server answered in
+                # another. Say so plainly: it is not a flaky page.
+                logger.warning(
+                    "Library list page %d: the API answered in version %s, which "
+                    "this build does not read (the build and the API are out of "
+                    "step); keeping the cache as it is",
+                    page,
+                    exc.api_version or "unknown",
+                )
+            else:
+                logger.warning("Library list page %d failed: %s", page, exc)
             stats.errors += 1
             break
 
