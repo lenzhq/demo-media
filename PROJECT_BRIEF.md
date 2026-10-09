@@ -72,7 +72,7 @@ The atom: one verified claim = one article. Four axes: **sections** (primary nav
 
 ## Data source — the `lenz-io` Python SDK
 
-- `pip install lenz-io` (≥2.3.0, Python ≥3.9). `Lenz(api_key=..., base_url=...)`; base URL default `https://lenz.io/api/v1`, override via `LENZ_BASE_URL`. **All reads keyless.**
+- `pip install lenz-io` (3.x, Python ≥3.10; it asks for the API's 2026-10-11 response shape). `Lenz(api_key=..., base_url=...)`; base URL default `https://lenz.io/api/v1`, override via `LENZ_BASE_URL`. **All reads keyless.**
 - Read surface used:
   - `client.library.list(*, page=1, sort="recent", search="", domain="", entity="") -> LibraryList` — public catalog. Fixed `page_size=20`; read `total` to compute pages. Sorts: `recent`, `popular`, `most_true`, `most_untrue` (+`relevance` w/ search).
   - `client.verifications.get(verification_id) -> Verification` — full detail **including `sources[]`** (list items have no sources → detail fetch per claim, mitigated by cache).
