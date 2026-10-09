@@ -51,39 +51,29 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
             },
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
+            # A reply served in another API version is not read at all (the
+            # SDK refuses it the same way for the build).
+            served = resp.headers.get(API_VERSION_HEADER)
+            if served and served != API_VERSION:
+                return None
             detail = json.load(resp)
     except Exception:
         return None
     if not isinstance(detail, dict) or not detail.get("claim"):
         return None
-    # The newer response shape reports a failed item with a ``failure``
-    # object (or ``status: "failed"`` and no verdict); it never renders. A
-    # body in the older shape is judged exactly as before.
-    if isinstance(detail.get("failure"), dict):
-        return None
-    if detail.get("status") == "failed" and detail.get("verdict") is None:
-        return None
     # Every prod verification carries a key_finding (generated with the
     # verdict; back catalog backfilled). A detail without one is malformed
-    # and never renders — the same skip rule as the static build's gate. A
-    # key_finding that is not text counts as missing.
-    if not _finding(detail):
+    # and never renders — the same skip rule as the static build's gate.
+    if not (detail.get("key_finding") or "").strip():
         return None
-    verdict = detail.get("verdict")
-    if not isinstance(verdict, str) or verdict not in VERDICTS:
-        return None  # Error / unknown never render
+    if detail.get("verdict") not in VERDICTS:  # unknown never renders
+        return None
     return detail
-
-
-def _finding(detail: dict) -> str:
-    """The key finding as stripped text; '' when missing or not text."""
-    value = detail.get("key_finding")
-    return value.strip() if isinstance(value, str) else ""
 
 
 def build_card_png(detail: dict) -> bytes:
     """The claim's OG card, identical to the built one (same renderer)."""
-    img = ogimage.render_card(_finding(detail))
+    img = ogimage.render_card(detail["key_finding"].strip())
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
@@ -159,7 +149,7 @@ def build_live_html(detail: dict) -> str:
     label = html.escape(verdict.bs_label)
     key = html.escape(verdict.key)
     summary = html.escape((detail.get("executive_summary") or "").strip())
-    headline_raw = _finding(detail)
+    headline_raw = detail["key_finding"].strip()
     # Claim-anchored description (same builder as the static site): with the
     # finding as the card title, this is where claim + verdict stay bound.
     source_count = len(detail.get("sources") or [])

@@ -24,7 +24,6 @@ from .config import (
     ARTICLE_MIN_SUMMARY_CHARS,
     COLLECTION_SIZE,
     ENTITY_MIN_CLAIMS,
-    EXCLUDED_VERDICTS,
     LANGS,
     LEAD_MIN_SOURCES,
     SITE,
@@ -216,20 +215,16 @@ def _parse_dt(value: str | None) -> datetime:
     return datetime.fromtimestamp(0, tz=UTC)
 
 
-def change_time(
-    modified_at: str | None, created_at: str | None, completed_at: str | None
-) -> str:
-    """When a claim last changed, as the site has always rendered it.
+def change_time(created_at: str | None, completed_at: str | None) -> str:
+    """When a claim last changed, as the site renders it.
 
-    The older response shape sends ``modified_at``: the completion time, set
-    only when the claim completed on a later calendar day (UTC) than it was
-    created, else null. The current shape sends ``completed_at`` (always set)
-    and no ``modified_at``. Both give the same answer here: a ``modified_at``
-    is used as sent; otherwise ``completed_at`` counts only on that same
-    later-day rule. Anything missing or unparseable is ``""`` (no change time).
+    The API reports one completion time, ``completed_at`` (always set). The
+    site treats a claim as modified only when it completed on a later UTC
+    calendar day than it was created: then the change time is
+    ``completed_at``; otherwise it is ``""`` (no change time, so the page
+    carries no modified date and the sitemap falls back to the creation date).
+    Anything missing or unparseable is ``""`` too.
     """
-    if isinstance(modified_at, str) and modified_at:
-        return modified_at
     if not (
         isinstance(completed_at, str)
         and completed_at
@@ -258,8 +253,8 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
     verdict = (d.get("verdict") or "").strip()
     if not vid or not VID_RE.match(str(vid)) or not claim:
         return None  # hostile/malformed ids never become filenames or URLs
-    if verdict in EXCLUDED_VERDICTS or verdict not in VERDICTS:
-        return None  # Error verdicts (and anything unknown) never render
+    if verdict not in VERDICTS:
+        return None  # no verdict (or an unknown one) never renders
     language = (d.get("language") or "en").strip().lower()
     if LANGS and language.split("-")[0] not in LANGS:
         return None
@@ -304,9 +299,7 @@ def _parse_check(doc: dict[str, Any]) -> Check | None:
         executive_summary=(d.get("executive_summary") or "").strip(),
         key_finding=(d.get("key_finding") or "").strip(),
         created_at=d.get("created_at") or "",
-        modified_at=change_time(
-            d.get("modified_at"), d.get("created_at"), d.get("completed_at")
-        ),
+        modified_at=change_time(d.get("created_at"), d.get("completed_at")),
         language=language,
         section=section_for_domain(d.get("domain")),
         entities=entities,

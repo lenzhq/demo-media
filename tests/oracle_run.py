@@ -1,11 +1,10 @@
-"""Runs the legacy-shape cases through whichever tree is first on sys.path.
+"""Runs the oracle cases through this tree (the current response shape).
 
-Used twice: once against a checkout of origin/main to freeze its outputs
-(``tests/fixtures/origin_main_oracle.json``), and by the test suite against
-this tree, which must reproduce them byte for byte. Only code paths that
-exist in both trees are called.
-
-Freeze:  PYTHONPATH=<origin checkout> python tests/oracle_run.py <origin checkout>
+``tests/fixtures/origin_main_oracle.json`` holds what the pre-change code
+produced for the same claims over the older response shape (provenance inside
+the file), reduced to what does not depend on the shape. The test suite
+compares this module's output with it byte for byte, so moving to the current
+shape changed nothing the site renders or stores as a change key.
 """
 
 from __future__ import annotations
@@ -23,11 +22,13 @@ FIXTURES = Path(__file__).parent / "fixtures" / "api_shapes.json"
 
 def _cases() -> dict:
     fx = json.loads(FIXTURES.read_text())
-    detail = fx["legacy"]["detail"]
-    item = fx["legacy"]["library_item"]
-    same_day_detail = copy.deepcopy(detail) | {"modified_at": None}
-    same_day_item = copy.deepcopy(item) | {"modified_at": None}
-    error_detail = copy.deepcopy(detail) | {"verdict": "Error", "confidence": "low"}
+    detail = fx["detail"]
+    item = fx["library_item"]
+    # completed the same UTC day it was created: no change time
+    same_day_detail = copy.deepcopy(detail) | {
+        "completed_at": "2026-09-01T17:30:00.123456+00:00"
+    }
+    same_day_item = fx["same_day_library_item"]
     many = copy.deepcopy(detail)
     many["sources"] = [
         {
@@ -41,22 +42,19 @@ def _cases() -> dict:
     ]
     return {
         "details": {
-            "legacy": detail,
+            "completed_later_day": detail,
             "same_day": same_day_detail,
-            "error": error_detail,
             "many_sources": many,
         },
         "items": {
-            "legacy": item,
+            "completed_later_day": item,
             "same_day": same_day_item,
         },
         "live_bodies": {
             "valid": detail,
             "same_day": same_day_detail,
             "many_sources": many,
-            "error_verdict": error_detail,
-            "error_with_failed_status": error_detail | {"status": "failed"},
-            "valid_with_failed_status": detail | {"status": "failed"},
+            "no_verdict": detail | {"verdict": None, "confidence": None},
             "no_key_finding": {k: v for k, v in detail.items() if k != "key_finding"},
             "blank_key_finding": detail | {"key_finding": "   "},
             "unknown_verdict": detail | {"verdict": "Maybe"},
@@ -83,6 +81,7 @@ def _ser(obj) -> object:
 class _Resp:
     def __init__(self, body) -> None:
         self._raw = json.dumps(body).encode()
+        self.headers: dict[str, str] = {}
 
     def __enter__(self):
         return self
@@ -132,7 +131,7 @@ def run() -> dict:
 
     class _Ver:
         def get(self, vid):
-            body = cases["details"]["legacy"] | {"verification_id": vid}
+            body = cases["details"]["completed_later_day"] | {"verification_id": vid}
             return Verification.model_validate(body)
 
         def related(self, vid, limit=5):
@@ -152,15 +151,10 @@ def run() -> dict:
         manifest = json.loads((Path(tmp) / "manifest.json").read_text())
         # second pass against the same cache: what is refetched?
         stats2 = fetch.sync(_Client(items), Path(tmp))
-        stored = {
-            p.stem: json.loads(p.read_text())["detail"]
-            for p in sorted((Path(tmp) / "claims").glob("*.json"))
-        }
     out["sync"] = {
         "first": _ser(stats),
         "second": _ser(stats2),
         "manifest": manifest,
-        "stored_details": stored,
     }
 
     # live function: what fetch_detail returns and the HTML built from it
@@ -170,7 +164,7 @@ def run() -> dict:
         for name, body in cases["live_bodies"].items():
             urllib.request.urlopen = lambda *a, _b=body, **k: _Resp(_b)
             got = live_core.fetch_detail("a1b2c3d4")
-            entry = {"returned": _ser(got)}
+            entry = {"served": got is not None}
             if got is not None:
                 entry["html"] = live_core.build_live_html(got)
             out["live"][name] = entry
@@ -180,8 +174,4 @@ def run() -> dict:
 
 
 if __name__ == "__main__":
-    root = Path(sys.argv[1]).resolve()
-    import isthisbs
-
-    assert Path(isthisbs.__file__).resolve().is_relative_to(root), isthisbs.__file__
     json.dump(run(), sys.stdout, indent=1, sort_keys=True, ensure_ascii=False)

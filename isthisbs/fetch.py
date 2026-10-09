@@ -4,14 +4,14 @@ This is the only module that talks to the network. It walks the public
 verification catalog through the ``lenz-io`` SDK and maintains a local cache
 that later build stages read offline. The whole point of the cache is that a
 rebuild only pays for what actually changed: the cheap library walk (20 items
-per page) tells us each claim's ``modified_at``, and we fetch the expensive
+per page) tells us each claim's change time, and we fetch the expensive
 per-claim detail (which carries ``sources[]``) and related lists *only* for
-ids that are new or whose ``modified_at`` moved.
+ids that are new or whose change time moved.
 
 Cache layout under ``cache_dir``::
 
     claims/{verification_id}.json   # {"detail": {...}, "related": [...], "fetched_at"}
-    manifest.json                   # {verification_id: modified_at}
+    manifest.json                   # {verification_id: change key}
 
 The manifest is the fast-path index: it lets an incremental sync decide
 new/changed/unchanged without opening a single claim file. It is written
@@ -72,8 +72,8 @@ class SyncStats:
     """Tally of what a :func:`sync` pass did, for human-readable logging.
 
     * ``new``       — ids seen for the first time (fetched + cached).
-    * ``updated``   — ids whose ``modified_at`` moved (re-fetched).
-    * ``unchanged`` — ids already cached at the current ``modified_at`` (skipped;
+    * ``updated``   — ids whose change time moved (re-fetched).
+    * ``unchanged`` — ids already cached at the current change time (skipped;
       no detail fetch — this is the incremental win).
     * ``dropped``   — ids gone from the catalog (cache file + manifest entry removed).
     * ``errors``    — per-claim fetch failures that were logged and skipped.
@@ -128,7 +128,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
 
     stats = SyncStats()
     seen: set[str] = set()
-    queued: dict[str, tuple[str, bool]] = {}  # vid -> (modified_at, is_new)
+    queued: dict[str, tuple[str, bool]] = {}  # vid -> (change key, is_new)
 
     total: int | None = None
     page = 1
@@ -167,8 +167,9 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
             modified = _change_key(item)
             cache_file = claims_dir / f"{vid}.json"
 
-            # Fast path: manifest agrees on modified_at AND the file is present
-            # → nothing changed, skip the expensive detail fetch entirely.
+            # Fast path: manifest agrees on the change key AND the file is
+            # present → nothing changed, skip the expensive detail fetch
+            # entirely.
             if manifest.get(vid) == modified and cache_file.exists():
                 stats.unchanged += 1
                 continue
@@ -418,20 +419,18 @@ def _write_cache_doc(claims_dir: Path, vid: str, doc: dict[str, Any]) -> None:
 def _change_key(item: object) -> str:
     """The value that tells us a claim changed since the last build.
 
-    It is the claim's change time as ``content.change_time`` defines it, so
-    it equals the ``modified_at`` that existing manifests hold, whichever
-    response shape the item came in (the newer one has ``completed_at`` and
-    no ``modified_at``). Another key would refetch the whole catalog once.
+    It is the claim's change time as ``content.change_time`` defines it
+    (``completed_at``, counted only when it falls on a later UTC day than
+    ``created_at``), the same value existing manifests hold, so switching
+    to it refetches nothing.
     """
     return change_time(
-        getattr(item, "modified_at", None),
-        getattr(item, "created_at", None),
-        getattr(item, "completed_at", None),
+        getattr(item, "created_at", None), getattr(item, "completed_at", None)
     )
 
 
 def _load_manifest(manifest_path: Path) -> dict[str, str]:
-    """Load the id → modified_at manifest; a missing/corrupt one starts empty.
+    """Load the id → change-key manifest; a missing/corrupt one starts empty.
 
     A corrupt manifest is not fatal: treating it as empty forces a full
     re-fetch, which is correct (if slow) rather than wrong.

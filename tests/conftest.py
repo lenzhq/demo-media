@@ -69,12 +69,12 @@ def _build_detail(
     *,
     verification_id: str,
     claim: str,
-    verdict: str,
+    verdict: str | None,
     lenz_score: int | None,
     executive_summary: str,
     key_finding: str,
     created_at: str,
-    modified_at: str,
+    completed_at: str,
     language: str,
     domain: str | None,
     entities: list[dict[str, Any]] | None,
@@ -93,7 +93,7 @@ def _build_detail(
         "executive_summary": executive_summary,
         "key_finding": key_finding,
         "created_at": created_at,
-        "modified_at": modified_at,
+        "completed_at": completed_at,
         "language": language,
         "domain": domain,
         "presumed_intent": presumed_intent,
@@ -127,14 +127,14 @@ def make_detail() -> Callable[..., dict[str, Any]]:
         *,
         verification_id: str | None = None,
         claim: str = "A widely shared statistic is off by a factor of ten.",
-        verdict: str = "False",
+        verdict: str | None = "False",
         lenz_score: int | None = 2,
         executive_summary: str = _DEFAULT_SUMMARY,
         # Non-empty by default: published checks always carry a finding (the
         # build gate skips finding-less ones). Skip-path cases pass ''.
         key_finding: str = "The claimed figure is contradicted by the primary data.",
         created_at: str = "2026-07-20T12:00:00Z",
-        modified_at: str | None = None,
+        completed_at: str | None = None,
         language: str = "en",
         domain: str | None = "health",
         entities: list[dict[str, Any]] | None = None,
@@ -178,7 +178,7 @@ def make_detail() -> Callable[..., dict[str, Any]]:
             executive_summary=executive_summary,
             key_finding=key_finding,
             created_at=created_at,
-            modified_at=modified_at if modified_at is not None else created_at,
+            completed_at=completed_at if completed_at is not None else created_at,
             language=language,
             domain=domain,
             entities=entities,
@@ -270,10 +270,10 @@ def sample_docs(make_detail) -> list[dict[str, Any]]:
             sources=[],
             warnings=[],
         ),
-        # Error verdict — must be filtered out entirely.
+        # No verdict (a check that produced none) — filtered out entirely.
         make_detail(
             claim="A claim the engine could not resolve.",
-            verdict="Error",
+            verdict=None,
             domain="general",
             created_at="2026-07-16T09:00:00Z",
         ),
@@ -311,7 +311,10 @@ def write_cache() -> Callable[[Path, list[dict[str, Any]]], Path]:
                 json.dumps(doc, ensure_ascii=False, indent=2, sort_keys=True),
                 encoding="utf-8",
             )
-            manifest[vid] = doc["detail"].get("modified_at") or ""
+            detail = doc["detail"]
+            manifest[vid] = content.change_time(
+                detail.get("created_at"), detail.get("completed_at")
+            )
         (cache_dir / "manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
             encoding="utf-8",

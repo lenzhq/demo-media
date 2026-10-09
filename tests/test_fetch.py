@@ -17,10 +17,18 @@ from isthisbs.config import PAGE_SIZE
 # --------------------------------------------------------------------------- #
 
 
+# Every claim here was created on 2026-07-01 and completed on a later day, so
+# its change key is its ``completed_at``.
+CREATED = "2026-07-01T09:00:00Z"
+LATER = "2026-07-02T09:00:00Z"
+LATER2 = "2026-07-03T09:00:00Z"
+
+
 class _FakeItem:
-    def __init__(self, vid: str, modified_at: str) -> None:
+    def __init__(self, vid: str, completed_at: str) -> None:
         self.verification_id = vid
-        self.modified_at = modified_at
+        self.created_at = CREATED
+        self.completed_at = completed_at
 
 
 class _FakeList:
@@ -121,6 +129,8 @@ def _detail_for(vid: str) -> dict:
         "claim": f"claim {vid}",
         "verdict": "False",
         "language": "en",
+        "created_at": CREATED,
+        "completed_at": LATER,
     }
 
 
@@ -131,7 +141,7 @@ def _detail_for(vid: str) -> dict:
 
 def test_new_id_is_fetched_and_cached(tmp_path):
     client = FakeClient(
-        catalog=[("A", "2026-07-01T00:00:00Z")],
+        catalog=[("A", LATER)],
         detail={"A": _detail_for("A")},
     )
     stats = fetch.sync(client, tmp_path)
@@ -143,7 +153,7 @@ def test_new_id_is_fetched_and_cached(tmp_path):
     assert doc["detail"]["verification_id"] == "A"
     assert "related" in doc and "fetched_at" in doc
     manifest = json.loads((tmp_path / "manifest.json").read_text())
-    assert manifest["A"] == "2026-07-01T00:00:00Z"
+    assert manifest["A"] == LATER
 
 
 def test_unchanged_id_skipped_zero_detail_calls(tmp_path, write_cache):
@@ -152,32 +162,32 @@ def test_unchanged_id_skipped_zero_detail_calls(tmp_path, write_cache):
         "related": [],
         "fetched_at": "2026-07-01T00:00:00+00:00",
     }
-    doc["detail"]["modified_at"] = "2026-07-01T00:00:00Z"
+    doc["detail"]["completed_at"] = LATER
     write_cache(tmp_path, [doc])
-    client = FakeClient(catalog=[("A", "2026-07-01T00:00:00Z")])
+    client = FakeClient(catalog=[("A", LATER)])
     stats = fetch.sync(client, tmp_path)
     assert stats.unchanged == 1
     assert stats.fetched == 0
     assert client.get_calls == []  # the incremental win: no detail fetch
 
 
-def test_changed_modified_at_refetched(tmp_path, write_cache):
+def test_changed_completed_at_refetched(tmp_path, write_cache):
     doc = {
         "detail": _detail_for("A"),
         "related": [],
         "fetched_at": "2026-07-01T00:00:00+00:00",
     }
-    doc["detail"]["modified_at"] = "2026-07-01T00:00:00Z"
+    doc["detail"]["completed_at"] = LATER
     write_cache(tmp_path, [doc])
     client = FakeClient(
-        catalog=[("A", "2026-07-05T00:00:00Z")],  # moved
+        catalog=[("A", LATER2)],  # moved
         detail={"A": _detail_for("A")},
     )
     stats = fetch.sync(client, tmp_path)
     assert stats.updated == 1
     assert client.get_calls == ["A"]
     manifest = json.loads((tmp_path / "manifest.json").read_text())
-    assert manifest["A"] == "2026-07-05T00:00:00Z"
+    assert manifest["A"] == LATER2
 
 
 def test_disappeared_id_dropped_on_full_walk(tmp_path, write_cache):
@@ -185,10 +195,10 @@ def test_disappeared_id_dropped_on_full_walk(tmp_path, write_cache):
         {"detail": _detail_for(v), "related": [], "fetched_at": "x"} for v in ("A", "B")
     ]
     for d in docs:
-        d["detail"]["modified_at"] = "m"
+        d["detail"]["completed_at"] = LATER
     write_cache(tmp_path, docs)
     # Catalog now only has A — B has vanished.
-    client = FakeClient(catalog=[("A", "m")])
+    client = FakeClient(catalog=[("A", LATER)])
     stats = fetch.sync(client, tmp_path, max_pages=None)
     assert stats.dropped == 1
     assert not (tmp_path / "claims" / "B.json").exists()
@@ -202,9 +212,9 @@ def test_disappeared_id_kept_when_max_pages_set(tmp_path, write_cache):
         {"detail": _detail_for(v), "related": [], "fetched_at": "x"} for v in ("A", "B")
     ]
     for d in docs:
-        d["detail"]["modified_at"] = "m"
+        d["detail"]["completed_at"] = LATER
     write_cache(tmp_path, docs)
-    client = FakeClient(catalog=[("A", "m")])
+    client = FakeClient(catalog=[("A", LATER)])
     stats = fetch.sync(client, tmp_path, max_pages=1)
     # Partial walk must NOT mass-delete: B survives.
     assert stats.dropped == 0
@@ -215,7 +225,7 @@ def test_disappeared_id_kept_when_max_pages_set(tmp_path, write_cache):
 
 def test_per_claim_error_logged_counted_skipped(tmp_path, caplog):
     client = FakeClient(
-        catalog=[("A", "m1"), ("B", "m2")],
+        catalog=[("A", LATER), ("B", LATER2)],
         detail={"A": _detail_for("A")},
         error_ids={"B"},
     )
@@ -232,7 +242,7 @@ def test_per_claim_error_logged_counted_skipped(tmp_path, caplog):
 
 def test_rate_limit_retried_once_then_succeeds(tmp_path):
     client = FakeClient(
-        catalog=[("A", "m")],
+        catalog=[("A", LATER)],
         detail={"A": _detail_for("A")},
         rate_limit_ids={"A"},
     )
@@ -244,9 +254,9 @@ def test_rate_limit_retried_once_then_succeeds(tmp_path):
 
 def test_list_page_error_stops_walk_no_drop(tmp_path, write_cache):
     doc = {"detail": _detail_for("A"), "related": [], "fetched_at": "x"}
-    doc["detail"]["modified_at"] = "m"
+    doc["detail"]["completed_at"] = LATER
     write_cache(tmp_path, [doc])
-    client = FakeClient(catalog=[("A", "m")], list_error_on_page=1)
+    client = FakeClient(catalog=[("A", LATER)], list_error_on_page=1)
     stats = fetch.sync(client, tmp_path)
     assert stats.errors == 1
     # Documented intent: an incomplete walk must NOT drop anything; A survives.
@@ -256,7 +266,7 @@ def test_list_page_error_stops_walk_no_drop(tmp_path, write_cache):
 
 def test_manifest_written_atomically_and_parses(tmp_path):
     client = FakeClient(
-        catalog=[("A", "m")],
+        catalog=[("A", LATER)],
         detail={"A": _detail_for("A")},
     )
     fetch.sync(client, tmp_path)
@@ -268,7 +278,7 @@ def test_manifest_written_atomically_and_parses(tmp_path):
 
 
 def test_pagination_covers_full_catalog(tmp_path):
-    catalog = [(f"V{i:03d}", "m") for i in range(45)]  # 3 pages of 20
+    catalog = [(f"V{i:03d}", LATER) for i in range(45)]  # 3 pages of 20
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     client = FakeClient(catalog=catalog, detail=detail)
     stats = fetch.sync(client, tmp_path)
@@ -305,7 +315,7 @@ def test_mass_drop_guard_refuses_catalog_collapse(tmp_path):
     gut the cache (deploying a near-empty site). >20% prospective drops are
     refused and surfaced as an error."""
     # Seed a 100-claim cache via a full sync.
-    catalog = [(f"W{i:04d}", "m") for i in range(100)]
+    catalog = [(f"W{i:04d}", LATER) for i in range(100)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
     assert len(list((tmp_path / "claims").glob("*.json"))) == 100
@@ -320,7 +330,7 @@ def test_mass_drop_guard_refuses_catalog_collapse(tmp_path):
 
 def test_small_drop_still_works(tmp_path):
     """Normal churn (a few claims removed upstream) drops fine."""
-    catalog = [(f"X{i:04d}", "m") for i in range(30)]
+    catalog = [(f"X{i:04d}", LATER) for i in range(30)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
 
@@ -334,7 +344,7 @@ def test_related_backfill_fills_empty_lists(tmp_path):
     """Once the related endpoint is reachable, cached docs with empty
     related lists get filled on the next full sync (unchanged claims
     never refetch, so without this they'd stay empty forever)."""
-    catalog = [(f"B{i:04d}", "m") for i in range(3)]
+    catalog = [(f"B{i:04d}", LATER) for i in range(3)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     client = FakeClient(catalog=catalog, detail=detail)
     fetch.sync(client, tmp_path)  # populates cache (fake related non-empty)
@@ -354,7 +364,7 @@ def test_related_backfill_fills_empty_lists(tmp_path):
 def test_related_backfill_skips_when_unavailable(tmp_path):
     """While the endpoint still needs a key, ONE probe fails and the pass
     bows out — no per-claim hammering."""
-    catalog = [(f"C{i:04d}", "m") for i in range(5)]
+    catalog = [(f"C{i:04d}", LATER) for i in range(5)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
     for f in (tmp_path / "claims").glob("*.json"):
@@ -388,7 +398,7 @@ def test_related_refresh_rotates_stale_docs(tmp_path):
     """A doc whose related list was last (re)fetched over the refresh horizon
     ago gets re-fetched on the next sync — new neighbors published since the
     original build show up on old articles. Fresh docs are left alone."""
-    catalog = [("STALE001", "m"), ("FRESH001", "m")]
+    catalog = [("STALE001", LATER), ("FRESH001", LATER)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     client = FakeClient(catalog=catalog, detail=detail)
     fetch.sync(client, tmp_path)
@@ -407,7 +417,7 @@ def test_related_refresh_rotates_stale_docs(tmp_path):
 def test_related_refresh_respects_budget(tmp_path, monkeypatch):
     """Per-build cap: only the N stalest docs refresh in one sync, so an 8h
     CI build stays bounded no matter how big the catalog grows."""
-    catalog = [(f"R{i:04d}", "m") for i in range(6)]
+    catalog = [(f"R{i:04d}", LATER) for i in range(6)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
     for i, (vid, _) in enumerate(catalog):
@@ -425,7 +435,7 @@ def test_related_refresh_stamps_empty_results(tmp_path):
     """A claim with genuinely no neighbors gets its (empty) result STAMPED —
     it must not be re-probed every single build (the old backfill hit every
     empty list on every sync, ~1.3k calls/build for nothing)."""
-    catalog = [("EMPTY001", "m")]
+    catalog = [("EMPTY001", LATER)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     fetch.sync(FakeClient(catalog=catalog, detail=detail), tmp_path)
     path = tmp_path / "claims" / "EMPTY001.json"
@@ -477,7 +487,7 @@ def test_detail_fetches_run_in_parallel(tmp_path):
     one — this is the difference between an ~80min and ~10min CI build when
     a large upstream batch changes. Correctness must be unchanged: every doc
     cached, manifest complete."""
-    catalog = [(f"P{i:04d}", "m") for i in range(12)]
+    catalog = [(f"P{i:04d}", LATER) for i in range(12)]
     detail = {vid: _detail_for(vid) for vid, _ in catalog}
     client = _SlowClient(catalog=catalog, detail=detail)
     stats = fetch.sync(client, tmp_path)

@@ -47,14 +47,16 @@ jobs:
       # cached detail docs must be refetched wholesale (they only refresh on a
       # moved modified_at otherwise). v2 = key_finding migration — the upstream
       # backfill writes the column without touching modified_at, so the old
-      # cache would never pick the field up via restore-keys.
+      # cache would never pick the field up via restore-keys. v3 = the move to
+      # the API's 2026-10-11 response shape — docs cached before it lack
+      # completed_at, the field the change time is read from.
       - name: Restore incremental cache
         uses: actions/cache@v4
         with:
           path: .cache
-          key: isthisbs-cache-v2-${{ github.run_id }}
+          key: isthisbs-cache-v3-${{ github.run_id }}
           restore-keys: |
-            isthisbs-cache-v2-
+            isthisbs-cache-v3-
 
       - name: Install (with search extra for Pagefind)
         run: pip install -e ".[search]"

@@ -105,9 +105,6 @@ VERDICTS: dict[str, Verdict] = {
     "False": Verdict("False", "TOTAL BS", 5, "v-total-bs", "#C62828", "#B3261E"),
 }
 
-#: Verdicts that never appear on the site (build-time filter).
-EXCLUDED_VERDICTS = frozenset({"Error"})
-
 #: Meter order, NOT BS → TOTAL BS (used by filter chips and the meter track).
 VERDICT_ORDER: list[Verdict] = sorted(VERDICTS.values(), key=lambda v: v.rank)
 
