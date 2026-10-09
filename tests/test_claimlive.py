@@ -92,12 +92,21 @@ class TestLiveCore:
         )
         assert "NOT BS" in html_out and "Verdict: True" in html_out
 
-    @pytest.mark.parametrize("verdict", [None, "Maybe"])
+    @pytest.mark.parametrize("verdict", [None, "Maybe", ["True"]])
     def test_a_body_without_a_known_verdict_is_refused(self, monkeypatch, verdict):
         monkeypatch.setattr(
             live_core.urllib.request,
             "urlopen",
             lambda *a, **k: _Resp(_detail(verdict=verdict)),
+        )
+        assert live_core.fetch_detail("abc12345") is None
+
+    @pytest.mark.parametrize("finding", [5, {"text": "x"}, "   "])
+    def test_a_key_finding_that_is_not_text_is_refused(self, monkeypatch, finding):
+        detail = _detail()
+        detail["key_finding"] = finding
+        monkeypatch.setattr(
+            live_core.urllib.request, "urlopen", lambda *a, **k: _Resp(detail)
         )
         assert live_core.fetch_detail("abc12345") is None
 

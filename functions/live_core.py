@@ -63,17 +63,25 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
         return None
     # Every prod verification carries a key_finding (generated with the
     # verdict; back catalog backfilled). A detail without one is malformed
-    # and never renders — the same skip rule as the static build's gate.
-    if not (detail.get("key_finding") or "").strip():
+    # and never renders — the same skip rule as the static build's gate. A
+    # key_finding that is not text counts as missing.
+    if not _finding(detail):
         return None
-    if detail.get("verdict") not in VERDICTS:  # unknown never renders
-        return None
+    verdict = detail.get("verdict")
+    if not isinstance(verdict, str) or verdict not in VERDICTS:
+        return None  # a failed check (no verdict) or an unknown one never renders
     return detail
+
+
+def _finding(detail: dict) -> str:
+    """The key finding as stripped text; '' when missing or not text."""
+    value = detail.get("key_finding")
+    return value.strip() if isinstance(value, str) else ""
 
 
 def build_card_png(detail: dict) -> bytes:
     """The claim's OG card, identical to the built one (same renderer)."""
-    img = ogimage.render_card(detail["key_finding"].strip())
+    img = ogimage.render_card(_finding(detail))
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
