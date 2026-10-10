@@ -25,6 +25,7 @@ error (no claims, a render/seo failure, etc.).
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import os
 import shutil
@@ -70,7 +71,10 @@ class _Stage:
 
 
 def _make_client():
-    """Build a keyless Lenz client.
+    """Build a keyless async Lenz client (``AsyncLenz``).
+
+    The caller owns it: use it as ``async with`` inside the event loop that
+    runs the fetch (an ``AsyncLenz`` belongs to one loop), as ``_fetch`` does.
 
     The SDK accepts ``base_url=None`` and falls back to ``LENZ_BASE_URL`` then
     its built-in default (``https://lenz.io/api/v1``), so passing the env var
@@ -82,17 +86,27 @@ def _make_client():
     shape; ``tests/test_api_shapes.py`` pins that it matches
     ``config.API_VERSION``, which the live claim function sends.
     """
-    from lenz_io import Lenz
+    from lenz_io import AsyncLenz
 
     from isthisbs import __version__
 
     # Self-identify so this demo's build traffic is attributable (and can be
     # filtered from Lenz's internal signals) rather than looking like a generic
     # Python SDK user. Mirrors the live claim function's ``isthisbs-claimlive``.
-    return Lenz(
+    return AsyncLenz(
         base_url=os.environ.get("LENZ_BASE_URL"),
         user_agent=f"isthisbs-media/{__version__}",
     )
+
+
+async def _fetch(cache_dir: Path, max_pages: int | None) -> fetch.SyncStats:
+    """Sync the catalog into the cache on one event loop.
+
+    ``async with`` closes the client's httpx connection pool on the way out,
+    whether the sync finished or raised.
+    """
+    async with _make_client() as client:
+        return await fetch.sync(client, cache_dir, max_pages=max_pages)
 
 
 # --------------------------------------------------------------------------- #
@@ -194,15 +208,8 @@ def build(args: argparse.Namespace) -> int:
         logger.info("Skipping fetch (--skip-fetch); building from existing cache.")
     else:
         with _Stage("fetch"):
-            client = _make_client()
-            try:
-                stats = fetch.sync(client, cache_dir, max_pages=args.max_pages)
-                logger.info("%s", stats)
-            finally:
-                # The SDK holds a persistent httpx connection pool; close it.
-                close = getattr(client, "close", None)
-                if callable(close):
-                    close()
+            stats = asyncio.run(_fetch(cache_dir, args.max_pages))
+            logger.info("%s", stats)
 
     # 1b. Discussions — bake community counts (CI has GITHUB_TOKEN; locally
     # this degrades to the cached file, or the zero state with none).

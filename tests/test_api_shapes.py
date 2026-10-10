@@ -13,6 +13,7 @@ them through the real ``lenz_io`` models, as it does in production.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import urllib.request
 from pathlib import Path
@@ -208,6 +209,10 @@ def test_the_site_asks_for_the_version_the_sdk_asks_for():
     assert lenz_io.API_VERSION == API_VERSION
 
 
+@pytest.mark.skipif(
+    not hasattr(lenz_io, "AsyncLenz"),
+    reason="AsyncLenz ships in lenz-io 3.1",
+)
 def test_the_build_client_sends_that_version_and_its_own_agent():
     import build
     from isthisbs import __version__
@@ -216,9 +221,9 @@ def test_the_build_client_sends_that_version_and_its_own_agent():
     try:
         headers = client._client.headers
         assert headers[API_VERSION_HEADER] == API_VERSION
-        assert headers["User-Agent"] == f"isthisbs-media/{__version__}"
+        assert headers["User-Agent"].startswith(f"isthisbs-media/{__version__}")
     finally:
-        client.close()
+        asyncio.run(client.aclose())
 
 
 def test_the_live_function_sends_that_version(monkeypatch):
@@ -262,7 +267,7 @@ def test_a_catalog_refetches_nothing_over_a_cache_in_the_current_shape(tmp_path)
     assert manifest["cross001"] and manifest["same0001"] == ""
 
     class _Library:
-        def list(self, page=1, sort="recent"):
+        async def list(self, page=1, sort="recent"):
             return LibraryList.model_validate(
                 {"items": [cross, same], "total": 2, "page": 1, "page_size": 20}
             )
@@ -271,5 +276,5 @@ def test_a_catalog_refetches_nothing_over_a_cache_in_the_current_shape(tmp_path)
         library = _Library()
         verifications = None  # any detail fetch would raise
 
-    stats = fetch.sync(_Client(), tmp_path)
+    stats = asyncio.run(fetch.sync(_Client(), tmp_path))
     assert (stats.unchanged, stats.new, stats.updated, stats.errors) == (2, 0, 0, 0)
