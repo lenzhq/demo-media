@@ -46,7 +46,7 @@ Lenz API ──▶ fetch (incremental cache) ──▶ Check model ──▶ Jin
 
 - **Fetch** — [`isthisbs/fetch.py`](isthisbs/fetch.py) walks the public library
   via the SDK and pulls detail + related claims **only for new or changed
-  ids** (fanned across a small worker pool), caching each to
+  ids** (fetched concurrently with `AsyncLenz`, at most four at a time), caching each to
   `.cache/claims/`. Second builds are nearly free. A rotating pass re-fetches
   the stalest related lists each build so new neighbors reach old articles.
 - **Model** — [`isthisbs/content.py`](isthisbs/content.py) turns raw API dicts
@@ -79,26 +79,37 @@ keyless — the base URL defaults to `https://lenz.io/api/v1` and is
 overridable with `LENZ_BASE_URL`.
 
 ```python
-from lenz_io import Lenz
+import asyncio
 
-client = Lenz()  # no api_key — public catalog reads are keyless
+from lenz_io import AsyncLenz
 
-# 1. Walk the public catalog (20 per page; read `total` to paginate).
-page = client.library.list(page=1, sort="recent")
-for item in page.items:
-    print(item.verdict, "—", item.claim)
 
-# 2. Fetch full detail for one claim — this is where sources[] live.
-detail = client.verifications.get(item.verification_id)
-print(detail.executive_summary)
-for src in detail.sources:
-    print(f"  · {src.source_name}: {src.title} ({src.url})")
+async def main() -> None:
+    # No api_key: public catalog reads are keyless.
+    async with AsyncLenz() as client:
+        # 1. Walk the public catalog (20 per page; read `total` to paginate).
+        page = await client.library.list(page=1, sort="recent")
+        for item in page.items:
+            print(item.verdict, "—", item.claim)
 
-# 3. Pull related claims to build the "More checks" rail.
-related = client.verifications.related(item.verification_id, limit=5)
-for r in related.items:
-    print("related:", r.claim)
+        # 2. Fetch full detail for one claim — this is where sources[] live.
+        detail = await client.verifications.get(item.verification_id)
+        print(detail.executive_summary)
+        for src in detail.sources:
+            print(f"  · {src.source_name}: {src.title} ({src.url})")
+
+        # 3. Pull related claims to build the "More checks" rail.
+        related = await client.verifications.related(item.verification_id, limit=5)
+        for r in related.items:
+            print("related:", r.claim)
+
+
+asyncio.run(main())
 ```
+
+The build does the same for every new or changed claim at once, behind an
+`asyncio.Semaphore` that keeps four claims in flight
+([`isthisbs/fetch.py`](isthisbs/fetch.py)).
 
 > Note: `related` is fetched best-effort — if it's unavailable the build
 > falls back to local entity overlap for "More Fact Checks" and backfills

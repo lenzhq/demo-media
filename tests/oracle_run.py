@@ -9,6 +9,7 @@ shape changed nothing the site renders or stores as a change key.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import dataclasses
 import json
@@ -126,15 +127,15 @@ def run() -> dict:
         def __init__(self, items):
             self._items = items
 
-        def list(self, page=1, sort="recent"):
+        async def list(self, page=1, sort="recent"):
             return _List(self._items if page == 1 else [])
 
     class _Ver:
-        def get(self, vid):
+        async def get(self, vid):
             body = cases["details"]["completed_later_day"] | {"verification_id": vid}
             return Verification.model_validate(body)
 
-        def related(self, vid, limit=5):
+        async def related(self, vid, limit=5):
             return _List([])
 
     class _Client:
@@ -147,10 +148,10 @@ def run() -> dict:
         for i, body in enumerate(cases["items"].values())
     ]
     with tempfile.TemporaryDirectory() as tmp:
-        stats = fetch.sync(_Client(items), Path(tmp))
+        stats = asyncio.run(fetch.sync(_Client(items), Path(tmp)))
         manifest = json.loads((Path(tmp) / "manifest.json").read_text())
         # second pass against the same cache: what is refetched?
-        stats2 = fetch.sync(_Client(items), Path(tmp))
+        stats2 = asyncio.run(fetch.sync(_Client(items), Path(tmp)))
     out["sync"] = {
         "first": _ser(stats),
         "second": _ser(stats2),

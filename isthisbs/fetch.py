@@ -26,12 +26,11 @@ and is re-read by ``content.build_checks`` as ordinary dicts.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,6 +43,9 @@ from .content import VID_RE, change_time
 
 logger = logging.getLogger(__name__)
 
+# The one place this module sleeps; tests replace it so they never wait.
+_sleep = asyncio.sleep
+
 # Politeness delay between per-claim detail fetches. The SDK already retries
 # 5xx/429 with backoff, so this is not a rate-limit guard — it just keeps us
 # from hammering the public endpoint in a tight loop when the cache is cold.
@@ -51,10 +53,20 @@ FETCH_DELAY = 0.05
 
 # Bounded fan-out for the network-bound phases (detail fetches + related
 # refresh). Sequential fetching runs at ~1 claim/sec, which turns a large
-# upstream batch into an hour-plus build; six workers keep it polite (the SDK
-# auto-retries 429s with backoff) while cutting wall clock ~6x. httpx.Client
-# is thread-safe, so the one SDK client is shared across workers.
-FETCH_WORKERS = 6
+# upstream batch into an hour-plus build, so claims are fetched concurrently:
+# every claim is an ``asyncio`` task on the one ``AsyncLenz`` client, and an
+# ``asyncio.Semaphore(FETCH_WORKERS)`` caps how many are in flight at once (the
+# SDK auto-retries 429s with backoff). Each in-flight claim makes two requests
+# in a row (detail, then related), so this bound is also the ceiling on
+# concurrent requests, give or take one.
+#
+# Four, down from the six the thread pool used: the last full refetch at six
+# was answered with 203 rate-limit (429) replies. The SDK retried them, so the
+# build finished, but each one cost a backoff sleep, and fewer claims in flight
+# trades a little wall clock for far fewer of them. The API's limit is not
+# published, so this is a judgment, not a measured optimum; the 429 count in
+# the next full refetch is the number to look at.
+FETCH_WORKERS = 4
 
 # Rotating related-list refresh: re-fetch a doc's related list once it's older
 # than RELATED_REFRESH_DAYS, at most RELATED_REFRESH_BUDGET docs per sync, so
@@ -104,8 +116,13 @@ class SyncStats:
 # --------------------------------------------------------------------------- #
 
 
-def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncStats:
+async def sync(
+    client: Any, cache_dir: Path, *, max_pages: int | None = None
+) -> SyncStats:
     """Bring the local cache in line with the public catalog.
+
+    ``client`` is an ``AsyncLenz``; run this coroutine with ``asyncio.run`` (or
+    from the caller's event loop), keeping the client open for the call.
 
     Walks ``client.library.list(page=N, sort="recent")`` (server-defined page size),
     fetches detail + related for new/changed ids, and — on a full walk — drops
@@ -135,7 +152,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
     walk_completed = False  # True only when pagination finishes without error
     while max_pages is None or page <= max_pages:
         try:
-            resp = client.library.list(page=page, sort="recent")
+            resp = await client.library.list(page=page, sort="recent")
         except LenzError as exc:
             # A failed list page means we can't reliably paginate further; stop
             # walking rather than guess. Anything already cached stays put — we
@@ -197,24 +214,31 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
             break
         page += 1
 
-    # Fan the deferred fetches across the worker pool. Manifest/stat updates
-    # happen here on the main thread (as_completed); only ``stats.errors``
-    # is touched inside workers, guarded by _STATS_LOCK in _fetch_and_store.
+    # Fan the deferred fetches out, at most FETCH_WORKERS in flight. Everything
+    # runs on the one event loop, so ``stats`` and ``manifest`` need no lock.
     if queued:
-        with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as pool:
-            futures = {
-                pool.submit(_fetch_and_store, client, claims_dir, vid, stats): vid
-                for vid in queued
-            }
-            for fut in as_completed(futures):
-                vid = futures[fut]
-                modified, is_new = queued[vid]
-                if fut.result():
-                    manifest[vid] = modified
-                    if is_new:
-                        stats.new += 1
-                    else:
-                        stats.updated += 1
+        gate = asyncio.Semaphore(FETCH_WORKERS)
+
+        async def _bounded(vid: str) -> bool:
+            async with gate:
+                return await _fetch_and_store(client, claims_dir, vid, stats)
+
+        vids = list(queued)
+        outcomes = await asyncio.gather(
+            *(_bounded(vid) for vid in vids), return_exceptions=True
+        )
+        for vid, outcome in zip(vids, outcomes, strict=True):
+            if isinstance(outcome, BaseException):
+                # Not an SDK error (those are handled per claim): a bug or a
+                # full disk. Fail the build, as before.
+                raise outcome
+            modified, is_new = queued[vid]
+            if outcome:
+                manifest[vid] = modified
+                if is_new:
+                    stats.new += 1
+                else:
+                    stats.updated += 1
 
     # Drop pass — only on a COMPLETE, error-free walk of the full catalog. Ids
     # in the manifest we never saw are gone upstream; remove file + manifest
@@ -248,7 +272,7 @@ def sync(client: Any, cache_dir: Path, *, max_pages: int | None = None) -> SyncS
     # few days. Empty results are stamped too — a claim with genuinely no
     # neighbors waits a full cycle instead of being re-probed every build.
     if max_pages is None:
-        _refresh_related(client, claims_dir)
+        await _refresh_related(client, claims_dir)
 
     _write_manifest_atomic(manifest_path, manifest)
     logger.info("%s", stats)
@@ -272,7 +296,7 @@ def _related_stamp(doc: dict[str, Any]) -> float:
         return 0.0
 
 
-def _refresh_related(client: Any, claims_dir: Path) -> None:
+async def _refresh_related(client: Any, claims_dir: Path) -> None:
     horizon = time.time() - RELATED_REFRESH_DAYS * 86400
     stale: list[tuple[float, Path]] = []
     for path in claims_dir.glob("*.json"):
@@ -289,34 +313,42 @@ def _refresh_related(client: Any, claims_dir: Path) -> None:
     stale.sort()  # oldest first; the budget always goes to the stalest docs
     batch = stale[:RELATED_REFRESH_BUDGET]
 
-    def _refresh_one(path: Path) -> bool:
+    async def _refresh_one(path: Path) -> bool:
         vid = path.stem
-        related = client.verifications.related(vid, limit=RELATED_LIMIT)
+        related = await client.verifications.related(vid, limit=RELATED_LIMIT)
         doc = json.loads(path.read_text(encoding="utf-8"))
         doc["related"] = [item.model_dump(mode="json") for item in related.items]
         doc["related_refreshed_at"] = datetime.now(UTC).isoformat()
         path.write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
-        time.sleep(FETCH_DELAY)
+        await _sleep(FETCH_DELAY)
         return True
 
     # Sequential probe first: one failed call means the endpoint is
-    # unreachable/anomalous — bow out without hammering it from six workers.
+    # unreachable/anomalous — bow out without hammering it with the full fan-out.
     try:
-        _refresh_one(batch[0][1])
+        await _refresh_one(batch[0][1])
     except LenzError as exc:
         logger.info("Related refresh unavailable (%s) — skipping", exc)
         return
     refreshed = 1
 
-    def _safe_refresh(path: Path) -> bool:
-        try:
-            return _refresh_one(path)
-        except LenzError:
-            return False  # per-claim miss mid-refresh: skip just this one
+    gate = asyncio.Semaphore(FETCH_WORKERS)
+
+    async def _safe_refresh(path: Path) -> bool:
+        async with gate:
+            try:
+                return await _refresh_one(path)
+            except LenzError:
+                return False  # per-claim miss mid-refresh: skip just this one
 
     if len(batch) > 1:
-        with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as pool:
-            refreshed += sum(pool.map(_safe_refresh, (p for _, p in batch[1:])))
+        outcomes = await asyncio.gather(
+            *(_safe_refresh(p) for _, p in batch[1:]), return_exceptions=True
+        )
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                raise outcome
+            refreshed += outcome
     logger.info(
         "Related refresh: %d of %d stale docs re-fetched (budget %d)",
         refreshed,
@@ -357,10 +389,10 @@ def load_raw(cache_dir: Path) -> list[dict[str, Any]]:
 # Internals
 # --------------------------------------------------------------------------- #
 
-_STATS_LOCK = threading.Lock()
 
-
-def _fetch_and_store(client: Any, claims_dir: Path, vid: str, stats: SyncStats) -> bool:
+async def _fetch_and_store(
+    client: Any, claims_dir: Path, vid: str, stats: SyncStats
+) -> bool:
     """Fetch detail + related for one id and write its cache doc.
 
     Returns ``True`` on success. On a rate limit, sleeps ``Retry-After``
@@ -368,33 +400,33 @@ def _fetch_and_store(client: Any, claims_dir: Path, vid: str, stats: SyncStats) 
     is logged, counted in ``stats.errors``, and reported as ``False`` — the
     caller then leaves the manifest untouched for this id.
 
-    Runs on FETCH_WORKERS pool threads; ``stats.errors`` is the one piece of
-    shared state mutated here, guarded by _STATS_LOCK.
+    Runs as one of at most FETCH_WORKERS concurrent tasks on a single event
+    loop; ``stats.errors`` is the one piece of shared state mutated here.
+    The rate-limit sleep is awaited while the caller still holds its slot, so a
+    throttled claim also takes the pressure off the API.
     """
     try:
-        doc = _fetch_doc(client, vid)
+        doc = await _fetch_doc(client, vid)
     except LenzRateLimitError as exc:
         wait = min(max(int(getattr(exc, "retry_after", 0) or 0), 0), MAX_RETRY_AFTER)
         logger.warning("Rate limited on %s; sleeping %ds then retrying once", vid, wait)
-        time.sleep(wait)
+        await _sleep(wait)
         try:
-            doc = _fetch_doc(client, vid)
+            doc = await _fetch_doc(client, vid)
         except LenzError as exc2:
             logger.warning("Retry after rate limit failed for %s: %s", vid, exc2)
-            with _STATS_LOCK:
-                stats.errors += 1
+            stats.errors += 1
             return False
     except LenzError as exc:
         logger.warning("Fetch failed for %s: %s", vid, exc)
-        with _STATS_LOCK:
-            stats.errors += 1
+        stats.errors += 1
         return False
 
     _write_cache_doc(claims_dir, vid, doc)
     return True
 
 
-def _fetch_doc(client: Any, vid: str) -> dict[str, Any]:
+async def _fetch_doc(client: Any, vid: str) -> dict[str, Any]:
     """Fetch the per-claim resources and assemble the cache document.
 
     Detail carries ``sources[]`` (absent from list items) and is required.
@@ -405,14 +437,14 @@ def _fetch_doc(client: Any, vid: str) -> dict[str, Any]:
     lenzhq/Lenz#114.) Both Pydantic
     models are serialized with ``model_dump(mode="json")``.
     """
-    detail = client.verifications.get(vid)
+    detail = await client.verifications.get(vid)
     try:
-        related = client.verifications.related(vid, limit=RELATED_LIMIT)
+        related = await client.verifications.related(vid, limit=RELATED_LIMIT)
         related_items = [item.model_dump(mode="json") for item in related.items]
     except LenzError as exc:
         logger.debug("Related unavailable for %s (%s); continuing without", vid, exc)
         related_items = []
-    time.sleep(FETCH_DELAY)  # tiny politeness gap between detail fetches
+    await _sleep(FETCH_DELAY)  # tiny politeness gap between detail fetches
     return {
         "detail": detail.model_dump(mode="json"),
         "related": related_items,
