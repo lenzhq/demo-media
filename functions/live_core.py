@@ -18,7 +18,13 @@ import re
 import urllib.request
 
 from isthisbs import ogimage
-from isthisbs.config import SITE, VERDICTS, section_for_domain
+from isthisbs.config import (
+    API_VERSION,
+    API_VERSION_HEADER,
+    SITE,
+    VERDICTS,
+    section_for_domain,
+)
 from isthisbs.content import mint_slug
 from isthisbs.seo import claim_anchored_description
 
@@ -38,20 +44,22 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
         return None
     try:
         req = urllib.request.Request(
-            API_BASE + vid, headers={"User-Agent": "isthisbs-claimlive"}
+            API_BASE + vid,
+            headers={
+                "User-Agent": "isthisbs-claimlive",
+                API_VERSION_HEADER: API_VERSION,
+            },
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
+            # A reply served in another API version is not read at all (the
+            # SDK refuses it the same way for the build).
+            served = resp.headers.get(API_VERSION_HEADER)
+            if served and served != API_VERSION:
+                return None
             detail = json.load(resp)
     except Exception:
         return None
     if not isinstance(detail, dict) or not detail.get("claim"):
-        return None
-    # The newer response shape reports a failed item with a ``failure``
-    # object (or ``status: "failed"`` and no verdict); it never renders. A
-    # body in the older shape is judged exactly as before.
-    if isinstance(detail.get("failure"), dict):
-        return None
-    if detail.get("status") == "failed" and detail.get("verdict") is None:
         return None
     # Every prod verification carries a key_finding (generated with the
     # verdict; back catalog backfilled). A detail without one is malformed
@@ -61,7 +69,7 @@ def fetch_detail(vid: str, *, timeout: int = 10) -> dict | None:
         return None
     verdict = detail.get("verdict")
     if not isinstance(verdict, str) or verdict not in VERDICTS:
-        return None  # Error / unknown never render
+        return None  # a failed check (no verdict) or an unknown one never renders
     return detail
 
 
@@ -149,7 +157,7 @@ def build_live_html(detail: dict) -> str:
     label = html.escape(verdict.bs_label)
     key = html.escape(verdict.key)
     summary = html.escape((detail.get("executive_summary") or "").strip())
-    headline_raw = _finding(detail)
+    headline_raw = detail["key_finding"].strip()
     # Claim-anchored description (same builder as the static site): with the
     # finding as the card title, this is where claim + verdict stay bound.
     source_count = len(detail.get("sources") or [])

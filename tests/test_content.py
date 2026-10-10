@@ -57,10 +57,10 @@ def test_entity_slug_fallback():
 # --------------------------------------------------------------------------- #
 
 
-def test_build_checks_excludes_error_and_unknown(make_detail):
+def test_build_checks_excludes_no_verdict_and_unknown(make_detail):
     docs = [
         make_detail(claim="ok", verdict="True", created_at="2026-07-10T00:00:00Z"),
-        make_detail(claim="err", verdict="Error", created_at="2026-07-11T00:00:00Z"),
+        make_detail(claim="err", verdict=None, created_at="2026-07-11T00:00:00Z"),
         make_detail(claim="weird", verdict="Bogus", created_at="2026-07-12T00:00:00Z"),
     ]
     checks = content.build_checks(docs)

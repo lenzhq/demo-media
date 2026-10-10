@@ -62,6 +62,12 @@ class Site:
 
 SITE = Site()
 
+#: The Lenz API response version every call asks for (``X-Lenz-API-Version``):
+#: the build's SDK client and the live claim function send the same value, so
+#: both read one response shape. Change it in this one place.
+API_VERSION = "2026-10-11"
+API_VERSION_HEADER = "X-Lenz-API-Version"
+
 
 # --------------------------------------------------------------------------- #
 # Verdicts — the BS Meter mapping
@@ -98,9 +104,6 @@ VERDICTS: dict[str, Verdict] = {
     ),
     "False": Verdict("False", "TOTAL BS", 5, "v-total-bs", "#C62828", "#B3261E"),
 }
-
-#: Verdicts that never appear on the site (build-time filter).
-EXCLUDED_VERDICTS = frozenset({"Error"})
 
 #: Meter order, NOT BS → TOTAL BS (used by filter chips and the meter track).
 VERDICT_ORDER: list[Verdict] = sorted(VERDICTS.values(), key=lambda v: v.rank)

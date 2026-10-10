@@ -22,6 +22,23 @@ def _offline_fonts(monkeypatch, tmp_path):
     )
 
 
+class _Resp:
+    """A urlopen() response: JSON body plus headers (a dict has .get)."""
+
+    def __init__(self, body, headers=None) -> None:
+        self._raw = json.dumps(body).encode()
+        self.headers = headers or {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, *a):
+        return self._raw
+
+
 def _detail(**over):
     d = {
         "verification_id": "abc12345",
@@ -75,19 +92,21 @@ class TestLiveCore:
         )
         assert "NOT BS" in html_out and "Verdict: True" in html_out
 
-    def test_error_verdict_refused(self, monkeypatch):
-        class _Resp:
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-            def read(self):
-                return json.dumps(_detail(verdict="Error")).encode()
-
+    @pytest.mark.parametrize("verdict", [None, "Maybe", ["True"]])
+    def test_a_body_without_a_known_verdict_is_refused(self, monkeypatch, verdict):
         monkeypatch.setattr(
-            live_core.urllib.request, "urlopen", lambda *a, **k: _Resp()
+            live_core.urllib.request,
+            "urlopen",
+            lambda *a, **k: _Resp(_detail(verdict=verdict)),
+        )
+        assert live_core.fetch_detail("abc12345") is None
+
+    @pytest.mark.parametrize("finding", [5, {"text": "x"}, "   "])
+    def test_a_key_finding_that_is_not_text_is_refused(self, monkeypatch, finding):
+        detail = _detail()
+        detail["key_finding"] = finding
+        monkeypatch.setattr(
+            live_core.urllib.request, "urlopen", lambda *a, **k: _Resp(detail)
         )
         assert live_core.fetch_detail("abc12345") is None
 

@@ -76,6 +76,11 @@ def _make_client():
     its built-in default (``https://lenz.io/api/v1``), so passing the env var
     through — even when unset — is the correct one-liner. No API key is passed:
     every catalog read this site makes is public and keyless.
+
+    The SDK sends the API version it was released against
+    (``X-Lenz-API-Version``) on every request and reads only that response
+    shape; ``tests/test_api_shapes.py`` pins that it matches
+    ``config.API_VERSION``, which the live claim function sends.
     """
     from lenz_io import Lenz
 

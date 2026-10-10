@@ -72,7 +72,7 @@ The atom: one verified claim = one article. Four axes: **sections** (primary nav
 
 ## Data source — the `lenz-io` Python SDK
 
-- `pip install lenz-io` (≥2.3.0, Python ≥3.9). `Lenz(api_key=..., base_url=...)`; base URL default `https://lenz.io/api/v1`, override via `LENZ_BASE_URL`. **All reads keyless.**
+- `pip install lenz-io` (3.x, Python ≥3.10; it asks for the API's 2026-10-11 response shape). `Lenz(api_key=..., base_url=...)`; base URL default `https://lenz.io/api/v1`, override via `LENZ_BASE_URL`. **All reads keyless.**
 - Read surface used:
   - `client.library.list(*, page=1, sort="recent", search="", domain="", entity="") -> LibraryList` — public catalog. Fixed `page_size=20`; read `total` to compute pages. Sorts: `recent`, `popular`, `most_true`, `most_untrue` (+`relevance` w/ search).
   - `client.verifications.get(verification_id) -> Verification` — full detail **including `sources[]`** (list items have no sources → detail fetch per claim, mitigated by cache).
@@ -92,7 +92,7 @@ The atom: one verified claim = one article. Four axes: **sections** (primary nav
 Fetch at build time via the SDK → generate static HTML → deploy `dist/`. No server, no per-visitor API calls.
 
 - **Stack (settled):** Python ≥3.11, `build.py` CLI + `isthisbs/` package, Jinja2 templates, plain CSS (own design system), Pillow for OG cards, Pagefind for client-side search (`pagefind[extended]` pip wheel; graceful skip if unavailable). Minimal deps, maximally legible.
-- **Incremental fetch/cache:** `.cache/claims/{verification_id}.json` (detail + related + fetched_at) with `.cache/manifest.json` (id → modified_at; the key stays `modified_at`; `completed_at` is read only when an item has no `modified_at` attribute at all). Each build walks the library list (cheap, 20/page), fetches detail+related **only for new/changed ids**, and drops ids no longer present in the walk. OG images cached in `.cache/og/` keyed by id+content-hash, copied to `dist/og/`. CI persists `.cache/` via actions/cache.
+- **Incremental fetch/cache:** `.cache/claims/{verification_id}.json` (detail + related + fetched_at) with `.cache/manifest.json` (id → change time: the item's `completed_at`, counted only when it falls on a later UTC calendar day than `created_at`, else empty, by `content.change_time`). The site asks for one API response version (`X-Lenz-API-Version: 2026-10-11`, the constant `config.API_VERSION`, sent by the SDK for the build and by the live function) and reads only that shape. Each build walks the library list (cheap, 20/page), fetches detail+related **only for new/changed ids**, and drops ids no longer present in the walk. OG images cached in `.cache/og/` keyed by id+content-hash, copied to `dist/og/`. CI persists `.cache/` via actions/cache.
 - **Clean URLs as directories:** every page is `path/index.html` — works on Firebase, `python -m http.server`, any host.
 - **Hosting (settled): Firebase Hosting** on GCP — free tier, global CDN, custom domain + SSL, one-command deploy. In a **separate GCP project (`isthisbs-prod`)** — real independence, clean billing. Alternatives rejected: GCS+LB+CDN (~$18+/mo fixed for a demo), Cloud Run+nginx (container ceremony, no CDN).
 - **Scheduled rebuild: GitHub Actions** — daily cron + `workflow_dispatch` + push-to-main. Auth to GCP via **Workload Identity Federation** (repo stays secret-free). `firebase deploy --only hosting` via ADC.
@@ -138,7 +138,7 @@ v1 has **no database**: content truth lives in the Lenz catalog; `.cache/` is a 
 
 Fully offline pytest suite (fake SDK objects/fixture dicts — never hits the network):
 - `test_content.py` — slug stability (incl. unicode/long claims), verdict map completeness, Error exclusion, language filter, entity ≥2 threshold, collections split, sort orders.
-- `test_fetch.py` — cache decisions with a fake client: new id fetched, unchanged skipped, changed modified_at refetched, disappeared id dropped, per-claim error skips + continues.
+- `test_fetch.py` — cache decisions with a fake client: new id fetched, unchanged skipped, changed completed_at refetched, disappeared id dropped, per-claim error skips + continues.
 - `test_seo.py` — ClaimReview field mapping (ratingValue=lenz_score, best 10/worst 1, alternateName=canonical verdict), sitemap URL sets, valid Atom XML, llms.txt content.
 - `test_render.py` — render home/section/article/topic from fixtures: exactly one `<h1>`, disclosure present, canonical link, BS pill correct for all 5 verdicts, split note renders, debate/panelist internals absent.
 - `test_ogimage.py` — emits 1200×630 PNG; deterministic cache key.

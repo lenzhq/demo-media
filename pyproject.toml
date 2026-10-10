@@ -20,7 +20,10 @@ keywords = ["fact-checking", "static-site", "lenz", "claimreview", "pagefind"]
 
 # Runtime dependencies for the static build.
 dependencies = [
-    "lenz-io>=2.6,<3",      # the public Lenz API SDK — all reads are keyless (2.6.0: key_finding exposed; older models drop the field)
+    # The public Lenz API SDK — all reads are keyless. 3.x asks for the API's
+    # 2026-10-11 response shape and reads only that.
+    "lenz-io>=3,<4",
+    "httpx>=0.27,<1",            # Discussions reaction/comment counts (already an SDK dependency)
     "jinja2>=3.1,<4",            # HTML template rendering
     "pillow>=12.3,<13",            # OG-image (1200x630) card generation — floor is the first version fixing the 14 open Pillow advisories (highest first_patched_version: 12.3.0)
     "python-slugify>=8,<9",    # stable slug minting (the API exposes no slug)
