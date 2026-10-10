@@ -18,6 +18,7 @@ import json
 import urllib.request
 from pathlib import Path
 
+import httpx
 import lenz_io
 import pytest
 from lenz_io.models import LibraryItem, LibraryList, Verification
@@ -209,21 +210,40 @@ def test_the_site_asks_for_the_version_the_sdk_asks_for():
     assert lenz_io.API_VERSION == API_VERSION
 
 
-@pytest.mark.skipif(
-    not hasattr(lenz_io, "AsyncLenz"),
-    reason="AsyncLenz ships in lenz-io 3.1",
-)
-def test_the_build_client_sends_that_version_and_its_own_agent():
+def test_the_build_client_sends_that_version_and_its_own_agent(monkeypatch):
+    """The version is set per request by the SDK, so assert it on a request
+    the build client actually sends, recorded through a MockTransport."""
     import build
     from isthisbs import __version__
 
-    client = build._make_client()
-    try:
-        headers = client._client.headers
-        assert headers[API_VERSION_HEADER] == API_VERSION
-        assert headers["User-Agent"].startswith(f"isthisbs-media/{__version__}")
-    finally:
-        asyncio.run(client.aclose())
+    recorded: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        recorded.append(request)
+        return httpx.Response(
+            200,
+            json={"items": [], "total": 0, "page": 1, "page_size": 20},
+            headers={API_VERSION_HEADER: API_VERSION},
+        )
+
+    real_client = httpx.AsyncClient
+
+    class _Recording(real_client):
+        def __init__(self, *args, **kwargs):
+            kwargs["transport"] = httpx.MockTransport(handler)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _Recording)
+
+    async def go():
+        async with build._make_client() as client:
+            await client.library.list()
+
+    asyncio.run(go())
+    assert len(recorded) == 1
+    sent = recorded[0]
+    assert sent.headers[API_VERSION_HEADER] == API_VERSION
+    assert sent.headers["User-Agent"].startswith(f"isthisbs-media/{__version__}")
 
 
 def test_the_live_function_sends_that_version(monkeypatch):

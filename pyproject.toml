@@ -22,7 +22,10 @@ keywords = ["fact-checking", "static-site", "lenz", "claimreview", "pagefind"]
 dependencies = [
     # The public Lenz API SDK — all reads are keyless. 3.x asks for the API's
     # 2026-10-11 response shape and reads only that.
-    "lenz-io>=3,<4",
+    # TODO: AsyncLenz ships in lenz-io 3.1, which is not published yet. Until
+    # it is, depend on the SDK branch at a pinned commit; once 3.1.0 is on PyPI
+    # replace the next line with "lenz-io>=3.1,<4".
+    "lenz-io @ git+https://github.com/lenzhq/lenz-io-python@360ad96e545973001ffa91c8919b4d931b3c7a56",
     "httpx>=0.27,<1",            # Discussions reaction/comment counts (already an SDK dependency)
     "jinja2>=3.1,<4",            # HTML template rendering
     "pillow>=12.3,<13",            # OG-image (1200x630) card generation — floor is the first version fixing the 14 open Pillow advisories (highest first_patched_version: 12.3.0)
